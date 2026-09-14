@@ -1,0 +1,38 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: almoxarifado-api
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/almoxarifado}
+    username: ${DB_USERNAME:almoxarifado}
+    password: ${DB_PASSWORD:almoxarifado}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    show-sql: false
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# Origens que podem chamar a API (separadas por vírgula).
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,https://brunotaveiradasilva.github.io}

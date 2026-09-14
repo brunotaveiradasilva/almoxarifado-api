@@ -1,0 +1,36 @@
+# Sobe MySQL + a API localmente com um único comando: docker compose up --build
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: almoxarifado
+      MYSQL_USER: almoxarifado
+      MYSQL_PASSWORD: almoxarifado
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/almoxarifado
+      DB_USERNAME: almoxarifado
+      DB_PASSWORD: almoxarifado
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,https://brunotaveiradasilva.github.io
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql_data:
