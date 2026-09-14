@@ -22,7 +22,7 @@ public class Material {
     @Column(nullable = false)
     private String nome;
 
-    @NotBlank(message = "Informe o código do material")
+    /** Gerado automaticamente pelo servidor quando não vier preenchido (ver MaterialController). */
     @Column(nullable = false)
     private String codigo;
 

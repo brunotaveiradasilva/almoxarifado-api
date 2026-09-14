@@ -35,6 +35,9 @@ public class MaterialController {
     @ResponseStatus(HttpStatus.CREATED)
     public Material criar(@Valid @RequestBody Material material) {
         material.setId(null); // o id é sempre gerado pelo banco, nunca aceito do cliente
+        if (material.getCodigo() == null || material.getCodigo().isBlank()) {
+            material.setCodigo(proximoCodigo());
+        }
         return repository.save(material);
     }
 
@@ -42,10 +45,24 @@ public class MaterialController {
     public Material atualizar(@PathVariable String id, @Valid @RequestBody Material material) {
         Material existente = buscarOuFalhar(id);
         existente.setNome(material.getNome());
-        existente.setCodigo(material.getCodigo());
+        // Código não é editável pelo front-end: só troca se vier um valor de verdade.
+        if (material.getCodigo() != null && !material.getCodigo().isBlank()) {
+            existente.setCodigo(material.getCodigo());
+        }
         existente.setEstoque(material.getEstoque());
         existente.setObs(material.getObs());
         return repository.save(existente);
+    }
+
+    /** Próximo código sequencial: maior código numérico já usado, mais um. */
+    private String proximoCodigo() {
+        int maior = repository.findAll().stream()
+                .map(Material::getCodigo)
+                .filter(codigo -> codigo != null && codigo.matches("\\d+"))
+                .mapToInt(Integer::parseInt)
+                .max()
+                .orElse(0);
+        return String.valueOf(maior + 1);
     }
 
     @DeleteMapping("/{id}")
