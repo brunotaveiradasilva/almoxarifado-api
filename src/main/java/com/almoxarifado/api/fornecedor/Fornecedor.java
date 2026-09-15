@@ -1,4 +1,4 @@
-package com.almoxarifado.api.tipometa;
+package com.almoxarifado.api.fornecedor;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,24 +8,20 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 
-/** Um tipo de meta que pode ser atribuído a vendedores (ex.: "Vendas", medida em "R$"). */
+/** Um fornecedor: dono de metas e ponto de ligação com os vendedores que trabalham para ele. */
 @Entity
-@Table(name = "tipos_meta")
-public class TipoMeta {
+@Table(name = "fornecedores")
+public class Fornecedor {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @NotBlank(message = "Informe o nome do tipo de meta")
+    @NotBlank(message = "Informe o nome do fornecedor")
     @Column(nullable = false, unique = true)
     private String nome;
 
-    @NotBlank(message = "Informe a unidade de medida")
-    @Column(nullable = false)
-    private String unidade;
-
-    public TipoMeta() {
+    public Fornecedor() {
     }
 
     public String getId() {
@@ -42,13 +38,5 @@ public class TipoMeta {
 
     public void setNome(String nome) {
         this.nome = nome;
-    }
-
-    public String getUnidade() {
-        return unidade;
-    }
-
-    public void setUnidade(String unidade) {
-        this.unidade = unidade;
     }
 }
