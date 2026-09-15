@@ -65,7 +65,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/usuarios").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/auth/usuarios/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/vendedores/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/tipos-meta/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/fornecedores/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/metas/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

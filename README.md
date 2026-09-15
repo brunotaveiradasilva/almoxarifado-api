@@ -101,14 +101,18 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | PUT    | `/api/agendamentos/{id}`     | Atualiza um agendamento                       |
 | PATCH  | `/api/agendamentos/{id}/status` | Só troca o status (`{"status": "retirado"}`) |
 | DELETE | `/api/agendamentos/{id}`     | Exclui um agendamento                         |
-| GET    | `/api/vendedores`            | Lista os vendedores (exige ser ADMIN)         |
-| POST   | `/api/vendedores`            | Cria um vendedor (exige ser ADMIN)            |
+| GET    | `/api/fornecedores`          | Lista os fornecedores (exige ser ADMIN)       |
+| POST   | `/api/fornecedores`          | Cria um fornecedor (exige ser ADMIN)          |
+| PUT    | `/api/fornecedores/{id}`     | Atualiza um fornecedor (exige ser ADMIN)      |
+| DELETE | `/api/fornecedores/{id}`     | Exclui um fornecedor (exige ser ADMIN; recusa se ele tiver metas) |
+| GET    | `/api/vendedores`            | Lista os vendedores, com os fornecedores de cada um (exige ser ADMIN) |
+| POST   | `/api/vendedores`            | Cria um vendedor (`{"nome","fornecedorIds","email","celular"}`, exige ser ADMIN) |
 | PUT    | `/api/vendedores/{id}`       | Atualiza um vendedor (exige ser ADMIN)        |
 | DELETE | `/api/vendedores/{id}`       | Exclui um vendedor (exige ser ADMIN)          |
-| GET    | `/api/tipos-meta`            | Lista os tipos de meta (exige ser ADMIN)      |
-| POST   | `/api/tipos-meta`            | Cria um tipo de meta (exige ser ADMIN)        |
-| PUT    | `/api/tipos-meta/{id}`       | Atualiza um tipo de meta (exige ser ADMIN)    |
-| DELETE | `/api/tipos-meta/{id}`       | Exclui um tipo de meta (exige ser ADMIN)      |
+| GET    | `/api/metas`                 | Lista as metas, com o fornecedor de cada uma (exige ser ADMIN) |
+| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; exige ser ADMIN) |
+| PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
+| DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
 | GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
 ## Variáveis de ambiente
@@ -152,7 +156,10 @@ disponível — nesse caso, um banco MySQL gratuito externo como o do
 ## Próximos passos possíveis
 
 - Trocar `ddl-auto: update` por migrations versionadas (Flyway), quando o schema começar a mudar
-  bastante.
+  bastante. Sem isso, `ddl-auto: update` só adiciona colunas/tabelas, nunca remove: se você já
+  tinha rodado a API com a versão antiga de `Vendedor` (com o campo `codigo`) ou com a tabela
+  `tipos_meta`, apague a coluna `codigo` de `vendedores` e a tabela `tipos_meta` manualmente antes
+  de subir esta versão.
 - Endpoint de logout/revogação — hoje um token vale até expirar (`JWT_VALIDADE_HORAS`), não tem
   como invalidar um antes da hora.
 - Permitir escolher o `role` do login ao criar outro usuário pela tela (hoje todo login criado

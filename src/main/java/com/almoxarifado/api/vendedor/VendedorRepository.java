@@ -1,10 +1,12 @@
 package com.almoxarifado.api.vendedor;
 
-import java.util.Optional;
+import java.util.List;
+
+import com.almoxarifado.api.fornecedor.Fornecedor;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface VendedorRepository extends JpaRepository<Vendedor, String> {
 
-    Optional<Vendedor> findByCodigoIgnoreCase(String codigo);
+    List<Vendedor> findByFornecedoresContaining(Fornecedor fornecedor);
 }

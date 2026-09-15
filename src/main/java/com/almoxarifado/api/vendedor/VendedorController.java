@@ -1,9 +1,12 @@
 package com.almoxarifado.api.vendedor;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
-import com.almoxarifado.api.common.RecursoJaExisteException;
 import com.almoxarifado.api.common.RecursoNaoEncontradoException;
+import com.almoxarifado.api.fornecedor.Fornecedor;
+import com.almoxarifado.api.fornecedor.FornecedorRepository;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -23,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class VendedorController {
 
     private final VendedorRepository repository;
+    private final FornecedorRepository fornecedores;
 
-    public VendedorController(VendedorRepository repository) {
+    public VendedorController(VendedorRepository repository, FornecedorRepository fornecedores) {
         this.repository = repository;
+        this.fornecedores = fornecedores;
     }
 
     @GetMapping
@@ -35,18 +40,16 @@ public class VendedorController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Vendedor criar(@Valid @RequestBody Vendedor vendedor) {
-        vendedor.setId(null); // o id é sempre gerado pelo banco, nunca aceito do cliente
-        garantirCodigoLivre(vendedor.getCodigo(), null);
+    public Vendedor criar(@Valid @RequestBody VendedorRequest corpo) {
+        Vendedor vendedor = new Vendedor();
+        preencher(vendedor, corpo);
         return repository.save(vendedor);
     }
 
     @PutMapping("/{id}")
-    public Vendedor atualizar(@PathVariable String id, @Valid @RequestBody Vendedor vendedor) {
+    public Vendedor atualizar(@PathVariable String id, @Valid @RequestBody VendedorRequest corpo) {
         Vendedor existente = buscarOuFalhar(id);
-        garantirCodigoLivre(vendedor.getCodigo(), id);
-        existente.setNome(vendedor.getNome());
-        existente.setCodigo(vendedor.getCodigo());
+        preencher(existente, corpo);
         return repository.save(existente);
     }
 
@@ -57,12 +60,19 @@ public class VendedorController {
         repository.deleteById(id);
     }
 
-    private void garantirCodigoLivre(String codigo, String idAtual) {
-        repository.findByCodigoIgnoreCase(codigo).ifPresent(outro -> {
-            if (!outro.getId().equals(idAtual)) {
-                throw new RecursoJaExisteException("Já existe um vendedor com o código " + codigo);
-            }
-        });
+    private void preencher(Vendedor vendedor, VendedorRequest corpo) {
+        vendedor.setNome(corpo.nome());
+        vendedor.setEmail(corpo.email());
+        vendedor.setCelular(corpo.celular());
+        vendedor.setFornecedores(buscarFornecedores(corpo.fornecedorIds()));
+    }
+
+    private Set<Fornecedor> buscarFornecedores(List<String> ids) {
+        List<Fornecedor> encontrados = fornecedores.findAllById(ids);
+        if (encontrados.size() != new LinkedHashSet<>(ids).size()) {
+            throw new RecursoNaoEncontradoException("Um ou mais fornecedores informados não existem");
+        }
+        return new LinkedHashSet<>(encontrados);
     }
 
     private Vendedor buscarOuFalhar(String id) {

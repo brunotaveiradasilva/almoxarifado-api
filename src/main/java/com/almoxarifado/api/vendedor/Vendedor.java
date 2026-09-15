@@ -1,14 +1,23 @@
 package com.almoxarifado.api.vendedor;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+import com.almoxarifado.api.fornecedor.Fornecedor;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 
-/** Um vendedor que pode ter metas atribuídas. Gerenciado só por admins. */
+/** Um vendedor, que pode trabalhar para mais de um fornecedor. */
 @Entity
 @Table(name = "vendedores")
 public class Vendedor {
@@ -21,9 +30,16 @@ public class Vendedor {
     @Column(nullable = false)
     private String nome;
 
-    @NotBlank(message = "Informe o código/matrícula do vendedor")
-    @Column(nullable = false, unique = true)
-    private String codigo;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "vendedor_fornecedor",
+            joinColumns = @JoinColumn(name = "vendedor_id"),
+            inverseJoinColumns = @JoinColumn(name = "fornecedor_id"))
+    private Set<Fornecedor> fornecedores = new LinkedHashSet<>();
+
+    private String email;
+
+    private String celular;
 
     public Vendedor() {
     }
@@ -44,11 +60,27 @@ public class Vendedor {
         this.nome = nome;
     }
 
-    public String getCodigo() {
-        return codigo;
+    public Set<Fornecedor> getFornecedores() {
+        return fornecedores;
     }
 
-    public void setCodigo(String codigo) {
-        this.codigo = codigo;
+    public void setFornecedores(Set<Fornecedor> fornecedores) {
+        this.fornecedores = fornecedores;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getCelular() {
+        return celular;
+    }
+
+    public void setCelular(String celular) {
+        this.celular = celular;
     }
 }
