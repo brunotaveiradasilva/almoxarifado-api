@@ -30,6 +30,10 @@ public class Usuario {
     @Column(nullable = false, columnDefinition = "varchar(20) default 'USUARIO'")
     private Role role = Role.USUARIO;
 
+    /** Foto de perfil como data URL (base64), já redimensionada e comprimida pelo front-end. */
+    @Column(columnDefinition = "LONGTEXT")
+    private String avatar;
+
     public Usuario() {
     }
 
@@ -63,5 +67,13 @@ public class Usuario {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 }

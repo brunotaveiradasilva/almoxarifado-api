@@ -44,7 +44,11 @@ public class AuthController {
             throw new CredenciaisInvalidasException("Usuário ou senha inválidos");
         }
 
-        return new LoginResponse(jwtService.gerar(usuario.getUsuario(), usuario.getRole()), usuario.getUsuario(), usuario.getRole());
+        return new LoginResponse(
+                jwtService.gerar(usuario.getUsuario(), usuario.getRole()),
+                usuario.getUsuario(),
+                usuario.getRole(),
+                usuario.getAvatar());
     }
 
     /** Nomes de todos os logins (nunca as senhas/hashes). */
@@ -96,6 +100,17 @@ public class AuthController {
         }
 
         usuario.setSenhaHash(passwordEncoder.encode(corpo.novaSenha()));
+        usuarios.save(usuario);
+    }
+
+    /** Troca a própria foto de perfil. Manda avatar em branco/nulo pra remover. */
+    @PatchMapping("/avatar")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void atualizarAvatar(Authentication authentication, @Valid @RequestBody AtualizarAvatarRequest corpo) {
+        Usuario usuario = usuarios.findByUsuarioIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new CredenciaisInvalidasException("Usuário não encontrado"));
+
+        usuario.setAvatar(corpo.avatar() == null || corpo.avatar().isBlank() ? null : corpo.avatar());
         usuarios.save(usuario);
     }
 }
