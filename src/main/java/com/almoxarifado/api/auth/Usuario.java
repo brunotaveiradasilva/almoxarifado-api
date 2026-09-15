@@ -2,6 +2,8 @@ package com.almoxarifado.api.auth;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -21,6 +23,12 @@ public class Usuario {
 
     @Column(name = "senha_hash", nullable = false)
     private String senhaHash;
+
+    // columnDefinition com DEFAULT: a coluna é nova, e o ALTER TABLE precisa de um valor pros
+    // logins que já existem no banco (senão falha em modo estrito do MySQL).
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'USUARIO'")
+    private Role role = Role.USUARIO;
 
     public Usuario() {
     }
@@ -47,5 +55,13 @@ public class Usuario {
 
     public void setSenhaHash(String senhaHash) {
         this.senhaHash = senhaHash;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
     }
 }

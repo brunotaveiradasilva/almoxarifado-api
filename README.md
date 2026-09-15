@@ -47,9 +47,9 @@ existia ainda` nos logs do Railway/`docker compose logs`).
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"usuario":"admin","senha":"admin123"}'
-# -> {"token":"...","usuario":"admin"}
+# -> {"token":"...","usuario":"admin","role":"ADMIN"}
 
-# criar outro login (precisa estar autenticado — cole o token acima)
+# criar outro login (precisa estar autenticado como ADMIN)
 curl -X POST http://localhost:8080/api/auth/usuarios \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <token>" \
@@ -57,6 +57,11 @@ curl -X POST http://localhost:8080/api/auth/usuarios \
 ```
 
 Não existe endpoint de auto-cadastro público de propósito: só quem já tem login pode criar outro.
+
+Todo login tem um papel (`role`): `ADMIN` ou `USUARIO`. O login criado pelo bootstrap
+(`ADMIN_USERNAME`) sempre vira `ADMIN`; qualquer login criado depois nasce `USUARIO`. Só `ADMIN`
+consegue criar/excluir outros logins e gerenciar vendedores e tipos de meta — o resto da API
+(materiais, agendamentos, trocar a própria senha) continua liberado pra qualquer login autenticado.
 
 Dentro do app, tudo isso (listar, criar, excluir logins e trocar a própria senha) já tem tela —
 não precisa usar `curl` no dia a dia, é só pra quando ninguém consegue mais entrar (próxima seção).
@@ -84,8 +89,8 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 |--------|------------------------------|----------------------------------------------|
 | POST   | `/api/auth/login`            | Login — devolve o token JWT                   |
 | GET    | `/api/auth/usuarios`         | Lista os nomes de usuário cadastrados         |
-| POST   | `/api/auth/usuarios`         | Cria outro login (exige estar autenticado)    |
-| DELETE | `/api/auth/usuarios/{usuario}` | Exclui um login (nunca o último que resta)  |
+| POST   | `/api/auth/usuarios`         | Cria outro login (exige ser ADMIN)            |
+| DELETE | `/api/auth/usuarios/{usuario}` | Exclui um login (exige ser ADMIN; nunca o último que resta) |
 | PATCH  | `/api/auth/senha`            | Troca a própria senha (`{"senhaAtual","novaSenha"}`) |
 | GET    | `/api/materiais`             | Lista todos os materiais                      |
 | POST   | `/api/materiais`             | Cria um material                              |
@@ -96,6 +101,14 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | PUT    | `/api/agendamentos/{id}`     | Atualiza um agendamento                       |
 | PATCH  | `/api/agendamentos/{id}/status` | Só troca o status (`{"status": "retirado"}`) |
 | DELETE | `/api/agendamentos/{id}`     | Exclui um agendamento                         |
+| GET    | `/api/vendedores`            | Lista os vendedores (exige ser ADMIN)         |
+| POST   | `/api/vendedores`            | Cria um vendedor (exige ser ADMIN)            |
+| PUT    | `/api/vendedores/{id}`       | Atualiza um vendedor (exige ser ADMIN)        |
+| DELETE | `/api/vendedores/{id}`       | Exclui um vendedor (exige ser ADMIN)          |
+| GET    | `/api/tipos-meta`            | Lista os tipos de meta (exige ser ADMIN)      |
+| POST   | `/api/tipos-meta`            | Cria um tipo de meta (exige ser ADMIN)        |
+| PUT    | `/api/tipos-meta/{id}`       | Atualiza um tipo de meta (exige ser ADMIN)    |
+| DELETE | `/api/tipos-meta/{id}`       | Exclui um tipo de meta (exige ser ADMIN)      |
 | GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
 ## Variáveis de ambiente
@@ -140,7 +153,7 @@ disponível — nesse caso, um banco MySQL gratuito externo como o do
 
 - Trocar `ddl-auto: update` por migrations versionadas (Flyway), quando o schema começar a mudar
   bastante.
-- Roles/permissões (hoje todo login autenticado pode fazer qualquer coisa, inclusive criar outros
-  logins).
 - Endpoint de logout/revogação — hoje um token vale até expirar (`JWT_VALIDADE_HORAS`), não tem
   como invalidar um antes da hora.
+- Permitir escolher o `role` do login ao criar outro usuário pela tela (hoje todo login criado
+  pela tela/API nasce `USUARIO`; promover a `ADMIN` só é possível direto no banco).

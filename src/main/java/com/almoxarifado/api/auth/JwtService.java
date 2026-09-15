@@ -47,15 +47,16 @@ public class JwtService {
         this.validadeSegundos = validadeHoras * 3600;
     }
 
-    public String gerar(String usuario) {
+    public String gerar(String usuario, Role role) {
         long agora = Instant.now().getEpochSecond();
-        String payload = encodeJson(Map.of("sub", usuario, "iat", agora, "exp", agora + validadeSegundos));
+        String payload = encodeJson(Map.of(
+                "sub", usuario, "role", role.name(), "iat", agora, "exp", agora + validadeSegundos));
         String semAssinatura = CABECALHO + "." + payload;
         return semAssinatura + "." + assinar(semAssinatura);
     }
 
-    /** Usuário do token, se a assinatura bater e o token ainda não tiver expirado. */
-    public Optional<String> validarEExtrairUsuario(String token) {
+    /** Usuário e papel do token, se a assinatura bater e o token ainda não tiver expirado. */
+    public Optional<Sessao> validarEExtrairSessao(String token) {
         try {
             String[] partes = token.split("\\.");
             if (partes.length != 3) return Optional.empty();
@@ -67,10 +68,21 @@ public class JwtService {
             long exp = ((Number) payload.get("exp")).longValue();
             if (Instant.now().getEpochSecond() > exp) return Optional.empty();
 
-            return Optional.ofNullable((String) payload.get("sub"));
+            String usuario = (String) payload.get("sub");
+            if (usuario == null) return Optional.empty();
+
+            // Tokens emitidos antes do campo "role" existir: trata como USUARIO comum.
+            Object roleBruta = payload.get("role");
+            Role role = roleBruta == null ? Role.USUARIO : Role.valueOf((String) roleBruta);
+
+            return Optional.of(new Sessao(usuario, role));
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    /** Identidade extraída de um token já validado. */
+    public record Sessao(String usuario, Role role) {
     }
 
     private String assinar(String dado) {

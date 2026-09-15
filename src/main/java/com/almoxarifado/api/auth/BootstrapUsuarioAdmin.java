@@ -49,7 +49,18 @@ public class BootstrapUsuarioAdmin implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         Optional<Usuario> existente = usuarios.findByUsuarioIgnoreCase(usuarioAdmin);
-        if (existente.isPresent() && !forcarReset) return;
+
+        if (existente.isPresent() && !forcarReset) {
+            // Login já existe e não é pra redefinir a senha: só garante que continua ADMIN
+            // (cobre logins criados antes do campo role existir, sem tocar na senha deles).
+            Usuario usuario = existente.get();
+            if (usuario.getRole() != Role.ADMIN) {
+                usuario.setRole(Role.ADMIN);
+                usuarios.save(usuario);
+                log.info("Promovi '{}' a ADMIN (login já existia de antes do controle de permissões).", usuarioAdmin);
+            }
+            return;
+        }
 
         boolean senhaFoiGerada = senhaAdmin.isBlank();
         String senha = senhaFoiGerada ? gerarSenhaAleatoria() : senhaAdmin;
@@ -57,6 +68,7 @@ public class BootstrapUsuarioAdmin implements ApplicationRunner {
         Usuario admin = existente.orElseGet(Usuario::new);
         admin.setUsuario(usuarioAdmin);
         admin.setSenhaHash(passwordEncoder.encode(senha));
+        admin.setRole(Role.ADMIN);
         usuarios.save(admin);
 
         String acao = existente.isPresent() ? "redefini a senha do login" : "criei o login";

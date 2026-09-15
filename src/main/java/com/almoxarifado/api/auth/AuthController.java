@@ -44,7 +44,7 @@ public class AuthController {
             throw new CredenciaisInvalidasException("Usuário ou senha inválidos");
         }
 
-        return new LoginResponse(jwtService.gerar(usuario.getUsuario()), usuario.getUsuario());
+        return new LoginResponse(jwtService.gerar(usuario.getUsuario(), usuario.getRole()), usuario.getUsuario(), usuario.getRole());
     }
 
     /** Nomes de todos os logins (nunca as senhas/hashes). */

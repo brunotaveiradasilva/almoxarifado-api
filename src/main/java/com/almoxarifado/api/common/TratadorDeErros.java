@@ -37,6 +37,11 @@ public class TratadorDeErros {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(RecursoJaExisteException.class)
+    public ResponseEntity<Map<String, String>> recursoJaExiste(RecursoJaExisteException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> validacaoFalhou(MethodArgumentNotValidException ex) {
         Map<String, String> campos = new LinkedHashMap<>();
