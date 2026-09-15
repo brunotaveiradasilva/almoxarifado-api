@@ -58,6 +58,23 @@ curl -X POST http://localhost:8080/api/auth/usuarios \
 
 Não existe endpoint de auto-cadastro público de propósito: só quem já tem login pode criar outro.
 
+Dentro do app, tudo isso (listar, criar, excluir logins e trocar a própria senha) já tem tela —
+não precisa usar `curl` no dia a dia, é só pra quando ninguém consegue mais entrar (próxima seção).
+
+### Recuperando o acesso
+
+Se ninguém souber a senha do `admin` (ex: foi a gerada automaticamente e o log já rolou), defina
+no serviço:
+
+```
+RESET_ADMIN_PASSWORD=true
+ADMIN_PASSWORD=uma-senha-nova-que-voce-escolheu
+```
+
+e reinicie/redeploy a API. No próximo boot ela redefine a senha desse login para o valor de
+`ADMIN_PASSWORD`, mesmo que ele já exista. **Depois de entrar, apague ou volte `RESET_ADMIN_PASSWORD`
+para `false`** — senão a senha é redefinida de novo a cada restart.
+
 ## Endpoints
 
 Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado pelo front-end
@@ -66,7 +83,9 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | Método | Rota                        | Descrição                                   |
 |--------|------------------------------|----------------------------------------------|
 | POST   | `/api/auth/login`            | Login — devolve o token JWT                   |
+| GET    | `/api/auth/usuarios`         | Lista os nomes de usuário cadastrados         |
 | POST   | `/api/auth/usuarios`         | Cria outro login (exige estar autenticado)    |
+| DELETE | `/api/auth/usuarios/{usuario}` | Exclui um login (nunca o último que resta)  |
 | PATCH  | `/api/auth/senha`            | Troca a própria senha (`{"senhaAtual","novaSenha"}`) |
 | GET    | `/api/materiais`             | Lista todos os materiais                      |
 | POST   | `/api/materiais`             | Cria um material                              |
@@ -92,6 +111,7 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | `JWT_VALIDADE_HORAS`     | `168` (7 dias)                                | Por quanto tempo um login fica valendo sem precisar entrar de novo |
 | `ADMIN_USERNAME`         | `admin`                                       | Nome do primeiro login, criado sozinho se o banco não tiver nenhum usuário |
 | `ADMIN_PASSWORD`         | *(gera uma aleatória e loga se não definir)*  | Senha do primeiro login                  |
+| `RESET_ADMIN_PASSWORD`   | `false`                                       | `true` força redefinir a senha de `ADMIN_USERNAME` no próximo boot, mesmo que já exista — ver **Recuperando o acesso** |
 
 ## Deploy (Railway)
 

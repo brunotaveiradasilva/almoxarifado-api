@@ -1,11 +1,19 @@
 package com.almoxarifado.api.auth;
 
+import java.util.Comparator;
+import java.util.List;
+
+import com.almoxarifado.api.common.RecursoNaoEncontradoException;
+
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +47,15 @@ public class AuthController {
         return new LoginResponse(jwtService.gerar(usuario.getUsuario()), usuario.getUsuario());
     }
 
+    /** Nomes de todos os logins (nunca as senhas/hashes). */
+    @GetMapping("/usuarios")
+    public List<String> listarUsuarios() {
+        return usuarios.findAll().stream()
+                .map(Usuario::getUsuario)
+                .sorted(Comparator.naturalOrder())
+                .toList();
+    }
+
     /** Cria outro login. Exige estar autenticado — só quem já entra no sistema pode convidar mais gente. */
     @PostMapping("/usuarios")
     @ResponseStatus(HttpStatus.CREATED)
@@ -51,6 +68,20 @@ public class AuthController {
         novo.setUsuario(corpo.usuario());
         novo.setSenhaHash(passwordEncoder.encode(corpo.senha()));
         usuarios.save(novo);
+    }
+
+    /** Exclui um login. Nunca o último que resta — senão ninguém mais consegue entrar. */
+    @DeleteMapping("/usuarios/{usuario}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluirUsuario(@PathVariable String usuario) {
+        Usuario alvo = usuarios.findByUsuarioIgnoreCase(usuario)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário " + usuario + " não encontrado"));
+
+        if (usuarios.count() <= 1) {
+            throw new UltimoUsuarioException("Não dá para excluir o único login que existe");
+        }
+
+        usuarios.delete(alvo);
     }
 
     /** Troca a própria senha. É assim que se recupera de uma senha gerada automaticamente. */

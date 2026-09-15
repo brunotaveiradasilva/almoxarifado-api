@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.almoxarifado.api.auth.CredenciaisInvalidasException;
+import com.almoxarifado.api.auth.UltimoUsuarioException;
 import com.almoxarifado.api.auth.UsuarioJaExisteException;
 
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,11 @@ public class TratadorDeErros {
 
     @ExceptionHandler(UsuarioJaExisteException.class)
     public ResponseEntity<Map<String, String>> usuarioJaExiste(UsuarioJaExisteException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(UltimoUsuarioException.class)
+    public ResponseEntity<Map<String, String>> ultimoUsuario(UltimoUsuarioException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
     }
 

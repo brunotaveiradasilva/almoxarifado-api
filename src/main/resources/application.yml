@@ -43,7 +43,10 @@ app:
     secret: ${JWT_SECRET:chave-de-desenvolvimento-local-troque-isto-em-producao-0123456789}
     validade-horas: ${JWT_VALIDADE_HORAS:168}
 
-  # Login criado sozinho na primeira vez que a API sobe sem nenhum usuário cadastrado.
+  # Login criado sozinho na primeira vez que a API sobe sem o usuário ADMIN_USERNAME cadastrado.
+  # RESET_ADMIN_PASSWORD=true força recriar a senha dele mesmo que já exista (ver
+  # BootstrapUsuarioAdmin) -- desative de novo depois de usar.
   admin:
     usuario: ${ADMIN_USERNAME:admin}
     senha: ${ADMIN_PASSWORD:}
+    forcar-reset: ${RESET_ADMIN_PASSWORD:false}
