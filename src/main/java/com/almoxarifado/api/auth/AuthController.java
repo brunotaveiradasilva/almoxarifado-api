@@ -3,7 +3,9 @@ package com.almoxarifado.api.auth;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,5 +51,20 @@ public class AuthController {
         novo.setUsuario(corpo.usuario());
         novo.setSenhaHash(passwordEncoder.encode(corpo.senha()));
         usuarios.save(novo);
+    }
+
+    /** Troca a própria senha. É assim que se recupera de uma senha gerada automaticamente. */
+    @PatchMapping("/senha")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void trocarSenha(Authentication authentication, @Valid @RequestBody TrocarSenhaRequest corpo) {
+        Usuario usuario = usuarios.findByUsuarioIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new CredenciaisInvalidasException("Usuário não encontrado"));
+
+        if (!passwordEncoder.matches(corpo.senhaAtual(), usuario.getSenhaHash())) {
+            throw new CredenciaisInvalidasException("Senha atual incorreta");
+        }
+
+        usuario.setSenhaHash(passwordEncoder.encode(corpo.novaSenha()));
+        usuarios.save(usuario);
     }
 }

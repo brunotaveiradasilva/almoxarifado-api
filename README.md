@@ -67,6 +67,7 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 |--------|------------------------------|----------------------------------------------|
 | POST   | `/api/auth/login`            | Login — devolve o token JWT                   |
 | POST   | `/api/auth/usuarios`         | Cria outro login (exige estar autenticado)    |
+| PATCH  | `/api/auth/senha`            | Troca a própria senha (`{"senhaAtual","novaSenha"}`) |
 | GET    | `/api/materiais`             | Lista todos os materiais                      |
 | POST   | `/api/materiais`             | Cria um material                              |
 | PUT    | `/api/materiais/{id}`        | Atualiza um material                          |
