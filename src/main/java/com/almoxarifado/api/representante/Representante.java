@@ -1,4 +1,4 @@
-package com.almoxarifado.api.vendedor;
+package com.almoxarifado.api.representante;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -17,23 +17,23 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 
-/** Um vendedor, que pode trabalhar para mais de um fornecedor. */
+/** Um representante, que pode trabalhar para mais de um fornecedor. */
 @Entity
-@Table(name = "vendedores")
-public class Vendedor {
+@Table(name = "representantes")
+public class Representante {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @NotBlank(message = "Informe o nome do vendedor")
+    @NotBlank(message = "Informe o nome do representante")
     @Column(nullable = false)
     private String nome;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-            name = "vendedor_fornecedor",
-            joinColumns = @JoinColumn(name = "vendedor_id"),
+            name = "representante_fornecedor",
+            joinColumns = @JoinColumn(name = "representante_id"),
             inverseJoinColumns = @JoinColumn(name = "fornecedor_id"))
     private Set<Fornecedor> fornecedores = new LinkedHashSet<>();
 
@@ -41,7 +41,7 @@ public class Vendedor {
 
     private String celular;
 
-    public Vendedor() {
+    public Representante() {
     }
 
     public String getId() {
