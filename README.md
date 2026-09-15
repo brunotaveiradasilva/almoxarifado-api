@@ -60,7 +60,7 @@ Não existe endpoint de auto-cadastro público de propósito: só quem já tem l
 
 Todo login tem um papel (`role`): `ADMIN` ou `USUARIO`. O login criado pelo bootstrap
 (`ADMIN_USERNAME`) sempre vira `ADMIN`; qualquer login criado depois nasce `USUARIO`. Só `ADMIN`
-consegue criar/excluir outros logins e gerenciar vendedores e tipos de meta — o resto da API
+consegue criar/excluir outros logins e gerenciar representantes e tipos de meta — o resto da API
 (materiais, agendamentos, trocar a própria senha) continua liberado pra qualquer login autenticado.
 
 Dentro do app, tudo isso (listar, criar, excluir logins e trocar a própria senha) já tem tela —
@@ -105,18 +105,18 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | POST   | `/api/fornecedores`          | Cria um fornecedor (exige ser ADMIN)          |
 | PUT    | `/api/fornecedores/{id}`     | Atualiza um fornecedor (exige ser ADMIN)      |
 | DELETE | `/api/fornecedores/{id}`     | Exclui um fornecedor (exige ser ADMIN; recusa se ele tiver metas) |
-| GET    | `/api/vendedores`            | Lista os vendedores, com os fornecedores de cada um (exige ser ADMIN) |
-| POST   | `/api/vendedores`            | Cria um vendedor (`{"nome","fornecedorIds","email","celular"}`, exige ser ADMIN) |
-| PUT    | `/api/vendedores/{id}`       | Atualiza um vendedor (exige ser ADMIN)        |
-| DELETE | `/api/vendedores/{id}`       | Exclui um vendedor (exige ser ADMIN)          |
+| GET    | `/api/representantes`            | Lista os representantes, com os fornecedores de cada um (exige ser ADMIN) |
+| POST   | `/api/representantes`            | Cria um representante (`{"nome","fornecedorIds","email","celular"}`, exige ser ADMIN) |
+| PUT    | `/api/representantes/{id}`       | Atualiza um representante (exige ser ADMIN)        |
+| DELETE | `/api/representantes/{id}`       | Exclui um representante (exige ser ADMIN)          |
 | GET    | `/api/metas`                 | Lista as metas, com o fornecedor de cada uma (exige ser ADMIN) |
 | POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; exige ser ADMIN) |
 | PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
 | DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
-| GET    | `/api/metas-vendedor`        | Lista os valores de meta atribuídos aos vendedores (exige ser ADMIN) |
-| POST   | `/api/metas-vendedor`        | Atribui um valor de meta a um vendedor (`{"vendedorId","metaId","valorMeta","valorRealizado"}`, exige ser ADMIN) |
-| PUT    | `/api/metas-vendedor/{id}`   | Atualiza um valor de meta (exige ser ADMIN)   |
-| DELETE | `/api/metas-vendedor/{id}`   | Exclui um valor de meta (exige ser ADMIN)     |
+| GET    | `/api/metas-representante`        | Lista os valores de meta atribuídos aos representantes (exige ser ADMIN) |
+| POST   | `/api/metas-representante`        | Atribui um valor de meta a um representante (`{"representanteId","metaId","valorMeta","valorRealizado"}`, exige ser ADMIN) |
+| PUT    | `/api/metas-representante/{id}`   | Atualiza um valor de meta (exige ser ADMIN)   |
+| DELETE | `/api/metas-representante/{id}`   | Exclui um valor de meta (exige ser ADMIN)     |
 | GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
 ## Variáveis de ambiente
@@ -161,8 +161,8 @@ disponível — nesse caso, um banco MySQL gratuito externo como o do
 
 - Trocar `ddl-auto: update` por migrations versionadas (Flyway), quando o schema começar a mudar
   bastante. Sem isso, `ddl-auto: update` só adiciona colunas/tabelas, nunca remove: se você já
-  tinha rodado a API com a versão antiga de `Vendedor` (com o campo `codigo`) ou com a tabela
-  `tipos_meta`, apague a coluna `codigo` de `vendedores` e a tabela `tipos_meta` manualmente antes
+  tinha rodado a API com a versão antiga de `Representante` (com o campo `codigo`) ou com a tabela
+  `tipos_meta`, apague a coluna `codigo` de `representantes` e a tabela `tipos_meta` manualmente antes
   de subir esta versão.
 - Endpoint de logout/revogação — hoje um token vale até expirar (`JWT_VALIDADE_HORAS`), não tem
   como invalidar um antes da hora.

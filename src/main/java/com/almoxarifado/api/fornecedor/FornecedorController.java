@@ -6,8 +6,8 @@ import com.almoxarifado.api.common.RecursoEmUsoException;
 import com.almoxarifado.api.common.RecursoJaExisteException;
 import com.almoxarifado.api.common.RecursoNaoEncontradoException;
 import com.almoxarifado.api.meta.MetaRepository;
-import com.almoxarifado.api.vendedor.Vendedor;
-import com.almoxarifado.api.vendedor.VendedorRepository;
+import com.almoxarifado.api.representante.Representante;
+import com.almoxarifado.api.representante.RepresentanteRepository;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,12 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class FornecedorController {
 
     private final FornecedorRepository repository;
-    private final VendedorRepository vendedores;
+    private final RepresentanteRepository representantes;
     private final MetaRepository metas;
 
-    public FornecedorController(FornecedorRepository repository, VendedorRepository vendedores, MetaRepository metas) {
+    public FornecedorController(FornecedorRepository repository, RepresentanteRepository representantes, MetaRepository metas) {
         this.repository = repository;
-        this.vendedores = vendedores;
+        this.representantes = representantes;
         this.metas = metas;
     }
 
@@ -59,7 +59,7 @@ public class FornecedorController {
 
     /**
      * Exclui um fornecedor. Bloqueia se ele tiver metas (não dá pra deixar uma meta sem
-     * fornecedor), mas desvincula sozinho dos vendedores que trabalhavam para ele.
+     * fornecedor), mas desvincula sozinho dos representantes que trabalhavam para ele.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -70,9 +70,9 @@ public class FornecedorController {
             throw new RecursoEmUsoException("Este fornecedor tem metas cadastradas. Exclua ou mude as metas primeiro.");
         }
 
-        for (Vendedor vendedor : vendedores.findByFornecedoresContaining(fornecedor)) {
-            vendedor.getFornecedores().remove(fornecedor);
-            vendedores.save(vendedor);
+        for (Representante representante : representantes.findByFornecedoresContaining(fornecedor)) {
+            representante.getFornecedores().remove(fornecedor);
+            representantes.save(representante);
         }
 
         repository.delete(fornecedor);

@@ -1,4 +1,4 @@
-package com.almoxarifado.api.vendedor;
+package com.almoxarifado.api.representante;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,35 +20,35 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** CRUD de vendedores. Só admins acessam (ver SecurityConfig). */
+/** CRUD de representantes. Só admins acessam (ver SecurityConfig). */
 @RestController
-@RequestMapping("/api/vendedores")
-public class VendedorController {
+@RequestMapping("/api/representantes")
+public class RepresentanteController {
 
-    private final VendedorRepository repository;
+    private final RepresentanteRepository repository;
     private final FornecedorRepository fornecedores;
 
-    public VendedorController(VendedorRepository repository, FornecedorRepository fornecedores) {
+    public RepresentanteController(RepresentanteRepository repository, FornecedorRepository fornecedores) {
         this.repository = repository;
         this.fornecedores = fornecedores;
     }
 
     @GetMapping
-    public List<Vendedor> listar() {
+    public List<Representante> listar() {
         return repository.findAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Vendedor criar(@Valid @RequestBody VendedorRequest corpo) {
-        Vendedor vendedor = new Vendedor();
-        preencher(vendedor, corpo);
-        return repository.save(vendedor);
+    public Representante criar(@Valid @RequestBody RepresentanteRequest corpo) {
+        Representante representante = new Representante();
+        preencher(representante, corpo);
+        return repository.save(representante);
     }
 
     @PutMapping("/{id}")
-    public Vendedor atualizar(@PathVariable String id, @Valid @RequestBody VendedorRequest corpo) {
-        Vendedor existente = buscarOuFalhar(id);
+    public Representante atualizar(@PathVariable String id, @Valid @RequestBody RepresentanteRequest corpo) {
+        Representante existente = buscarOuFalhar(id);
         preencher(existente, corpo);
         return repository.save(existente);
     }
@@ -60,11 +60,11 @@ public class VendedorController {
         repository.deleteById(id);
     }
 
-    private void preencher(Vendedor vendedor, VendedorRequest corpo) {
-        vendedor.setNome(corpo.nome());
-        vendedor.setEmail(corpo.email());
-        vendedor.setCelular(corpo.celular());
-        vendedor.setFornecedores(buscarFornecedores(corpo.fornecedorIds()));
+    private void preencher(Representante representante, RepresentanteRequest corpo) {
+        representante.setNome(corpo.nome());
+        representante.setEmail(corpo.email());
+        representante.setCelular(corpo.celular());
+        representante.setFornecedores(buscarFornecedores(corpo.fornecedorIds()));
     }
 
     private Set<Fornecedor> buscarFornecedores(List<String> ids) {
@@ -75,8 +75,8 @@ public class VendedorController {
         return new LinkedHashSet<>(encontrados);
     }
 
-    private Vendedor buscarOuFalhar(String id) {
+    private Representante buscarOuFalhar(String id) {
         return repository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Vendedor " + id + " não encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Representante " + id + " não encontrado"));
     }
 }

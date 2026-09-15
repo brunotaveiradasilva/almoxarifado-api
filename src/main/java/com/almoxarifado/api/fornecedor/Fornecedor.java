@@ -8,7 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 
-/** Um fornecedor: dono de metas e ponto de ligação com os vendedores que trabalham para ele. */
+/** Um fornecedor: dono de metas e ponto de ligação com os representantes que trabalham para ele. */
 @Entity
 @Table(name = "fornecedores")
 public class Fornecedor {

@@ -1,7 +1,7 @@
-package com.almoxarifado.api.metavendedor;
+package com.almoxarifado.api.metarepresentante;
 
 import com.almoxarifado.api.meta.Meta;
-import com.almoxarifado.api.vendedor.Vendedor;
+import com.almoxarifado.api.representante.Representante;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,19 +15,19 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
-/** O valor de uma meta atribuído a um vendedor específico: quanto ele precisa bater e quanto já bateu. */
+/** O valor de uma meta atribuído a um representante específico: quanto ele precisa bater e quanto já bateu. */
 @Entity
-@Table(name = "metas_vendedor", uniqueConstraints = @UniqueConstraint(columnNames = { "vendedor_id", "meta_id" }))
-public class MetaVendedor {
+@Table(name = "metas_representante", uniqueConstraints = @UniqueConstraint(columnNames = { "representante_id", "meta_id" }))
+public class MetaRepresentante {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @NotNull(message = "Informe o vendedor")
+    @NotNull(message = "Informe o representante")
     @ManyToOne(optional = false)
-    @JoinColumn(name = "vendedor_id", nullable = false)
-    private Vendedor vendedor;
+    @JoinColumn(name = "representante_id", nullable = false)
+    private Representante representante;
 
     @NotNull(message = "Informe a meta")
     @ManyToOne(optional = false)
@@ -42,7 +42,7 @@ public class MetaVendedor {
     @Column(name = "valor_realizado", nullable = false)
     private double valorRealizado;
 
-    public MetaVendedor() {
+    public MetaRepresentante() {
     }
 
     public String getId() {
@@ -53,12 +53,12 @@ public class MetaVendedor {
         this.id = id;
     }
 
-    public Vendedor getVendedor() {
-        return vendedor;
+    public Representante getRepresentante() {
+        return representante;
     }
 
-    public void setVendedor(Vendedor vendedor) {
-        this.vendedor = vendedor;
+    public void setRepresentante(Representante representante) {
+        this.representante = representante;
     }
 
     public Meta getMeta() {
