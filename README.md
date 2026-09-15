@@ -113,6 +113,10 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; exige ser ADMIN) |
 | PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
 | DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
+| GET    | `/api/metas-vendedor`        | Lista os valores de meta atribuídos aos vendedores (exige ser ADMIN) |
+| POST   | `/api/metas-vendedor`        | Atribui um valor de meta a um vendedor (`{"vendedorId","metaId","valorMeta","valorRealizado"}`, exige ser ADMIN) |
+| PUT    | `/api/metas-vendedor/{id}`   | Atualiza um valor de meta (exige ser ADMIN)   |
+| DELETE | `/api/metas-vendedor/{id}`   | Exclui um valor de meta (exige ser ADMIN)     |
 | GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
 ## Variáveis de ambiente
