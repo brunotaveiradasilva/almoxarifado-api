@@ -67,6 +67,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/vendedores/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/fornecedores/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/metas/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/metas-vendedor/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
