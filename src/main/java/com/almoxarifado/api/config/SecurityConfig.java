@@ -59,6 +59,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
+                        // Criar/excluir logins e gerenciar vendedores e tipos de meta é coisa de admin;
+                        // o resto (listar usuários, materiais, agendamentos) continua para qualquer
+                        // login autenticado, como sempre foi.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/usuarios").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/auth/usuarios/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/vendedores/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/tipos-meta/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
