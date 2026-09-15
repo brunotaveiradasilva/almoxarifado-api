@@ -7,8 +7,9 @@ não só do navegador onde foram cadastrados.
 ## Stack
 
 - Java 21
-- Spring Boot 3 (Web, Data JPA, Validation, Actuator)
+- Spring Boot 3 (Web, Data JPA, Validation, Actuator, Security)
 - MySQL 8
+- Login com token JWT (implementação própria, sem lib externa — ver `auth/JwtService.java`)
 - Docker / docker compose para rodar local e fazer deploy
 
 ## Rodando local
@@ -19,7 +20,8 @@ não só do navegador onde foram cadastrados.
 docker compose up --build
 ```
 
-Sobe o MySQL e a API juntos. A API fica em `http://localhost:8080`.
+Sobe o MySQL e a API juntos. A API fica em `http://localhost:8080`, já com um login
+`admin` / `admin123` criado sozinho na primeira vez que sobe (ver seção **Login** abaixo).
 
 ### Opção 2 — Java + Maven na máquina
 
@@ -30,13 +32,41 @@ sozinho). Copie `.env.example` para `.env`, ajuste se precisar, exporte as vari�
 mvn spring-boot:run
 ```
 
+## Login
+
+A API inteira exige login — só `POST /api/auth/login` fica aberto, o resto sempre precisa de um
+token válido no header `Authorization: Bearer <token>`.
+
+Na primeira vez que a API sobe sem nenhum usuário cadastrado, ela cria um login sozinha a partir
+de `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Se `ADMIN_PASSWORD` não estiver definida, gera uma senha
+aleatória e mostra ela **uma única vez** no log de inicialização (procure por `Nenhum usuario
+existia ainda` nos logs do Railway/`docker compose logs`).
+
+```bash
+# entrar
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"usuario":"admin","senha":"admin123"}'
+# -> {"token":"...","usuario":"admin"}
+
+# criar outro login (precisa estar autenticado — cole o token acima)
+curl -X POST http://localhost:8080/api/auth/usuarios \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"usuario":"maria","senha":"uma-senha-forte"}'
+```
+
+Não existe endpoint de auto-cadastro público de propósito: só quem já tem login pode criar outro.
+
 ## Endpoints
 
 Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado pelo front-end
-(`types.ts`).
+(`types.ts`). Todos exigem login (seção acima), exceto `/api/auth/login`.
 
 | Método | Rota                        | Descrição                                   |
 |--------|------------------------------|----------------------------------------------|
+| POST   | `/api/auth/login`            | Login — devolve o token JWT                   |
+| POST   | `/api/auth/usuarios`         | Cria outro login (exige estar autenticado)    |
 | GET    | `/api/materiais`             | Lista todos os materiais                      |
 | POST   | `/api/materiais`             | Cria um material                              |
 | PUT    | `/api/materiais/{id}`        | Atualiza um material                          |
@@ -46,7 +76,7 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | PUT    | `/api/agendamentos/{id}`     | Atualiza um agendamento                       |
 | PATCH  | `/api/agendamentos/{id}/status` | Só troca o status (`{"status": "retirado"}`) |
 | DELETE | `/api/agendamentos/{id}`     | Exclui um agendamento                         |
-| GET    | `/actuator/health`           | Health check (usado pelo Railway/Render)      |
+| GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
 ## Variáveis de ambiente
 
@@ -57,6 +87,10 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | `DB_USERNAME`             | `almoxarifado`                               | Usuário do banco                         |
 | `DB_PASSWORD`             | `almoxarifado`                               | Senha do banco                           |
 | `CORS_ALLOWED_ORIGINS`   | `http://localhost:5173,https://brunotaveiradasilva.github.io` | Origens que podem chamar a API, separadas por vírgula |
+| `JWT_SECRET`             | chave de desenvolvimento (fraca, só local)   | Assina os tokens — **troque por um valor forte e único antes de publicar** (ex: `openssl rand -base64 48`) |
+| `JWT_VALIDADE_HORAS`     | `168` (7 dias)                                | Por quanto tempo um login fica valendo sem precisar entrar de novo |
+| `ADMIN_USERNAME`         | `admin`                                       | Nome do primeiro login, criado sozinho se o banco não tiver nenhum usuário |
+| `ADMIN_PASSWORD`         | *(gera uma aleatória e loga se não definir)*  | Senha do primeiro login                  |
 
 ## Deploy (Railway)
 
@@ -70,6 +104,8 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
    - `DB_USERNAME` = `${{MySQL.MYSQLUSER}}`
    - `DB_PASSWORD` = `${{MySQL.MYSQLPASSWORD}}`
    - `CORS_ALLOWED_ORIGINS` = `https://brunotaveiradasilva.github.io`
+   - `JWT_SECRET` = um valor aleatório forte (gere com `openssl rand -base64 48`, por exemplo)
+   - `ADMIN_USERNAME` e `ADMIN_PASSWORD` = o login que você vai usar pra entrar no app
    - (o Railway já define `PORT` sozinho — não precisa mexer)
 5. Gere um domínio público em **Settings → Networking → Generate Domain**. Essa URL
    (`https://algo.up.railway.app`) é o `VITE_API_URL` que o front-end vai usar.
@@ -83,4 +119,7 @@ disponível — nesse caso, um banco MySQL gratuito externo como o do
 
 - Trocar `ddl-auto: update` por migrations versionadas (Flyway), quando o schema começar a mudar
   bastante.
-- Autenticação (hoje a API é aberta para qualquer um com a URL).
+- Roles/permissões (hoje todo login autenticado pode fazer qualquer coisa, inclusive criar outros
+  logins).
+- Endpoint de logout/revogação — hoje um token vale até expirar (`JWT_VALIDADE_HORAS`), não tem
+  como invalidar um antes da hora.

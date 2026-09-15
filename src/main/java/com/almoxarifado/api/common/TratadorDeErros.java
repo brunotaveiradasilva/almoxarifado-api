@@ -3,6 +3,9 @@ package com.almoxarifado.api.common;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.almoxarifado.api.auth.CredenciaisInvalidasException;
+import com.almoxarifado.api.auth.UsuarioJaExisteException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -16,6 +19,16 @@ public class TratadorDeErros {
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<Map<String, String>> naoEncontrado(RecursoNaoEncontradoException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<Map<String, String>> credenciaisInvalidas(CredenciaisInvalidasException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(UsuarioJaExisteException.class)
+    public ResponseEntity<Map<String, String>> usuarioJaExiste(UsuarioJaExisteException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
