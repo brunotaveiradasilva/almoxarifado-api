@@ -92,6 +92,7 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | POST   | `/api/auth/usuarios`         | Cria outro login (exige ser ADMIN)            |
 | DELETE | `/api/auth/usuarios/{usuario}` | Exclui um login (exige ser ADMIN; nunca o último que resta) |
 | PATCH  | `/api/auth/senha`            | Troca a própria senha (`{"senhaAtual","novaSenha"}`) |
+| PATCH  | `/api/auth/avatar`           | Troca a própria foto de perfil (`{"avatar"}`, data URL base64; manda vazio/nulo pra remover) |
 | GET    | `/api/materiais`             | Lista todos os materiais                      |
 | POST   | `/api/materiais`             | Cria um material                              |
 | PUT    | `/api/materiais/{id}`        | Atualiza um material                          |
