@@ -134,6 +134,36 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | `ADMIN_USERNAME`         | `admin`                                       | Nome do primeiro login, criado sozinho se o banco não tiver nenhum usuário |
 | `ADMIN_PASSWORD`         | *(gera uma aleatória e loga se não definir)*  | Senha do primeiro login                  |
 | `RESET_ADMIN_PASSWORD`   | `false`                                       | `true` força redefinir a senha de `ADMIN_USERNAME` no próximo boot, mesmo que já exista — ver **Recuperando o acesso** |
+| `ADS_API_URL`            | `https://hom.adsapi.com.br`                   | URL base da API da ADS (histórico de vendas) |
+| `ADS_EMAIL` / `ADS_SENHA` | *(vazio)*                                    | Login da API da ADS — ver **Integração com a ADS** |
+| `ADS_CNPJ_DISTRIBUIDORA` | *(vazio)*                                    | CNPJ da distribuidora, usado como path param nas chamadas à ADS |
+
+## Integração com a ADS (histórico de vendas)
+
+Em andamento: calcular o `valorRealizado` das metas (`/api/metas-representante`) a partir do
+histórico de vendas da [API da ADS](https://hom.adsapi.com.br/docs/#tag/historico-de-vendas),
+em vez de editar esse valor manualmente.
+
+O que já existe (`src/main/java/com/almoxarifado/api/ads`):
+
+- `AdsTokenService` — faz login (`POST /api/v1/login` com `ADS_EMAIL`/`ADS_SENHA`) e guarda o
+  token em memória, renovando sozinho.
+- `AdsHistoricoVendasClient` — chama `GET /api/v1/{cnpjDistribuidora}/historico-de-vendas`,
+  pagina os resultados sozinho e devolve os pedidos já tipados (`AdsVenda`).
+
+O que falta antes de ligar isso ao cálculo de `valorRealizado`:
+
+1. **O parâmetro `especificoid`** é obrigatório na consulta de histórico de vendas, mas a ADS não
+   documenta o que ele representa (não tem descrição nem exemplo na spec). Precisa confirmar com o
+   suporte da ADS — só depois dá pra saber de onde tirar esse valor (fixo? por fornecedor? por
+   representante?) e cadastrar o campo certo em `Fornecedor`/`Representante` pra guardá-lo.
+2. **Mapear `Meta.nome` pros dados da venda.** As metas (ex: "Vitta", "Geral", "Umidos", "Cookie")
+   provavelmente correspondem a `itens[].divisao.descricao` no retorno da ADS, mas isso também
+   precisa ser confirmado antes de somar quantidades/valores errados.
+3. Depois disso: decidir o período de apuração (mês corrente? ciclo customizado?), escrever o
+   serviço que soma `itens[].quantidade` (metas em `KG`/`UNIDADE`) ou `itens[].valores.valorProduto`
+   (metas em `REAL`) por representante+meta, e um jeito de disparar o recálculo (endpoint manual,
+   ou agendado).
 
 ## Deploy (Railway)
 

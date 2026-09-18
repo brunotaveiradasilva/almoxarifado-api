@@ -50,3 +50,12 @@ app:
     usuario: ${ADMIN_USERNAME:admin}
     senha: ${ADMIN_PASSWORD:}
     forcar-reset: ${RESET_ADMIN_PASSWORD:false}
+
+  # Credenciais da API da ADS (histórico de vendas), usadas por com.almoxarifado.api.ads pra
+  # calcular o "realizado" das metas. Ver README para o que ainda falta antes disso funcionar
+  # de ponta a ponta (o parâmetro `especificoid` da consulta não está documentado pela ADS).
+  ads:
+    base-url: ${ADS_API_URL:https://hom.adsapi.com.br}
+    email: ${ADS_EMAIL:}
+    senha: ${ADS_SENHA:}
+    cnpj-distribuidora: ${ADS_CNPJ_DISTRIBUIDORA:}
