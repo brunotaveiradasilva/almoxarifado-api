@@ -15,6 +15,6 @@ record AdsItemVenda(AdsDivisao divisao, double quantidade, AdsValoresItem valore
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record AdsPeso(double liquido) {
+    record AdsPeso(double bruto, double liquido) {
     }
 }
