@@ -2,6 +2,7 @@ package com.almoxarifado.api.metarepresentante;
 
 import java.util.List;
 
+import com.almoxarifado.api.ads.AdsSincronizacaoService;
 import com.almoxarifado.api.common.RecursoJaExisteException;
 import com.almoxarifado.api.common.RecursoNaoEncontradoException;
 import com.almoxarifado.api.meta.Meta;
@@ -29,16 +30,28 @@ public class MetaRepresentanteController {
     private final MetaRepresentanteRepository repository;
     private final RepresentanteRepository representantes;
     private final MetaRepository metas;
+    private final AdsSincronizacaoService sincronizacao;
 
-    public MetaRepresentanteController(MetaRepresentanteRepository repository, RepresentanteRepository representantes, MetaRepository metas) {
+    public MetaRepresentanteController(
+            MetaRepresentanteRepository repository,
+            RepresentanteRepository representantes,
+            MetaRepository metas,
+            AdsSincronizacaoService sincronizacao) {
         this.repository = repository;
         this.representantes = representantes;
         this.metas = metas;
+        this.sincronizacao = sincronizacao;
     }
 
     @GetMapping
     public List<MetaRepresentante> listar() {
         return repository.findAll();
+    }
+
+    /** Força agora o recálculo do realizado a partir da ADS (o mesmo que roda sozinho todo dia). */
+    @PostMapping("/sincronizar")
+    public List<MetaRepresentante> sincronizar() {
+        return sincronizacao.sincronizarTudo();
     }
 
     @PostMapping

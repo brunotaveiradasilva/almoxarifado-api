@@ -41,6 +41,9 @@ public class Representante {
 
     private String celular;
 
+    /** Código desse representante na API da ADS (histórico de vendas) — vazio se ele não é sincronizado automaticamente. */
+    private String codigoAds;
+
     public Representante() {
     }
 
@@ -82,5 +85,13 @@ public class Representante {
 
     public void setCelular(String celular) {
         this.celular = celular;
+    }
+
+    public String getCodigoAds() {
+        return codigoAds;
+    }
+
+    public void setCodigoAds(String codigoAds) {
+        this.codigoAds = codigoAds;
     }
 }

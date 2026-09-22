@@ -64,6 +64,7 @@ public class RepresentanteController {
         representante.setNome(corpo.nome());
         representante.setEmail(corpo.email());
         representante.setCelular(corpo.celular());
+        representante.setCodigoAds(corpo.codigoAds());
         representante.setFornecedores(buscarFornecedores(corpo.fornecedorIds()));
     }
 

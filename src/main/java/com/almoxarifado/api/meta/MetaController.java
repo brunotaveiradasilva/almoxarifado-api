@@ -61,6 +61,7 @@ public class MetaController {
     private void preencher(Meta meta, MetaRequest corpo) {
         meta.setNome(corpo.nome());
         meta.setUnidade(corpo.unidade());
+        meta.setCodigoAdsDivisao(corpo.codigoAdsDivisao());
         meta.setFornecedor(buscarFornecedor(corpo.fornecedorId()));
     }
 

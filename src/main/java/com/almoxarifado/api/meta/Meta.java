@@ -38,6 +38,9 @@ public class Meta {
     @Column(nullable = false)
     private UnidadeMeta unidade;
 
+    /** Código da divisão correspondente na API da ADS (histórico de vendas) — vazio se essa meta não é sincronizada automaticamente. */
+    private String codigoAdsDivisao;
+
     public Meta() {
     }
 
@@ -71,5 +74,13 @@ public class Meta {
 
     public void setUnidade(UnidadeMeta unidade) {
         this.unidade = unidade;
+    }
+
+    public String getCodigoAdsDivisao() {
+        return codigoAdsDivisao;
+    }
+
+    public void setCodigoAdsDivisao(String codigoAdsDivisao) {
+        this.codigoAdsDivisao = codigoAdsDivisao;
     }
 }
