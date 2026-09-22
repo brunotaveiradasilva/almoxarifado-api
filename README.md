@@ -179,7 +179,7 @@ fornecedor) ou por `codigoAdsDivisao` (só os itens cuja `divisao.id` bate com u
 | Unidade da meta | Campo somado |
 |---|---|
 | `REAL` | `itens[].valores.valorProduto` |
-| `KG` | `itens[].peso.liquido` |
+| `KG` | `itens[].peso.bruto` |
 | `UNIDADE` | `itens[].quantidade` |
 
 **Quando roda:** todo dia às 6h (`@Scheduled` em `AdsSincronizacaoService`), recalculando o mês

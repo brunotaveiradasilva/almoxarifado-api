@@ -30,7 +30,8 @@ import org.springframework.stereotype.Service;
  *   dos códigos (aceita vários separados por vírgula, ex: "112,113").</li>
  * </ul>
  *
- * Cada um soma quantidade (UNIDADE), peso líquido (KG) ou valor do produto (REAL). Representante
+ * Cada um soma quantidade (UNIDADE), peso bruto (KG — confirmado batendo com o valor esperado
+ * pelo usuário; peso líquido dava um número menor) ou valor do produto (REAL). Representante
  * ou meta sem nenhum dos dois códigos cadastrado fica de fora, sem erro.
  */
 @Service
@@ -99,7 +100,7 @@ public class AdsSincronizacaoService {
     private double valor(AdsItemVenda item, UnidadeMeta unidade) {
         return switch (unidade) {
             case REAL -> item.valores().valorProduto();
-            case KG -> item.peso().liquido();
+            case KG -> item.peso().bruto();
             case UNIDADE -> item.quantidade();
         };
     }
