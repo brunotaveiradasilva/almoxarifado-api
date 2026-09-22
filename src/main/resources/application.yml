@@ -52,10 +52,11 @@ app:
     forcar-reset: ${RESET_ADMIN_PASSWORD:false}
 
   # Credenciais da API da ADS (histórico de vendas), usadas por com.almoxarifado.api.ads pra
-  # calcular o "realizado" das metas. Ver README para o que ainda falta antes disso funcionar
-  # de ponta a ponta (o parâmetro `especificoid` da consulta não está documentado pela ADS).
+  # calcular o "realizado" das metas todo dia de madrugada (ver AdsSincronizacaoService). Autentica
+  # só com os headers x-api-key/User-Agent, direto em produção (adsapi.com.br) — ver README.
   ads:
-    base-url: ${ADS_API_URL:https://hom.adsapi.com.br}
-    email: ${ADS_EMAIL:}
-    senha: ${ADS_SENHA:}
+    base-url: ${ADS_API_URL:https://adsapi.com.br}
+    api-key: ${ADS_API_KEY:}
+    user-agent: ${ADS_USER_AGENT:SulBiologic}
+    especifico-id: ${ADS_ESPECIFICO_ID:074}
     cnpj-distribuidora: ${ADS_CNPJ_DISTRIBUIDORA:}

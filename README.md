@@ -107,14 +107,15 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | PUT    | `/api/fornecedores/{id}`     | Atualiza um fornecedor (exige ser ADMIN)      |
 | DELETE | `/api/fornecedores/{id}`     | Exclui um fornecedor (exige ser ADMIN; recusa se ele tiver metas) |
 | GET    | `/api/representantes`            | Lista os representantes, com os fornecedores de cada um (exige ser ADMIN) |
-| POST   | `/api/representantes`            | Cria um representante (`{"nome","fornecedorIds","email","celular"}`, exige ser ADMIN) |
+| POST   | `/api/representantes`            | Cria um representante (`{"nome","fornecedorIds","email","celular","codigoAds"}`, `codigoAds` é opcional — ver **Integração com a ADS** — exige ser ADMIN) |
 | PUT    | `/api/representantes/{id}`       | Atualiza um representante (exige ser ADMIN)        |
 | DELETE | `/api/representantes/{id}`       | Exclui um representante (exige ser ADMIN)          |
 | GET    | `/api/metas`                 | Lista as metas, com o fornecedor de cada uma (exige ser ADMIN) |
-| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; exige ser ADMIN) |
+| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade","codigoAdsDivisao"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; `codigoAdsDivisao` é opcional — ver **Integração com a ADS** — exige ser ADMIN) |
 | PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
 | DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
 | GET    | `/api/metas-representante`        | Lista os valores de meta atribuídos aos representantes (exige ser ADMIN) |
+| POST   | `/api/metas-representante/sincronizar` | Força agora o recálculo do realizado a partir da ADS (exige ser ADMIN) |
 | POST   | `/api/metas-representante`        | Atribui um valor de meta a um representante (`{"representanteId","metaId","valorMeta","valorRealizado"}`, exige ser ADMIN) |
 | PUT    | `/api/metas-representante/{id}`   | Atualiza um valor de meta (exige ser ADMIN)   |
 | DELETE | `/api/metas-representante/{id}`   | Exclui um valor de meta (exige ser ADMIN)     |
@@ -134,36 +135,55 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | `ADMIN_USERNAME`         | `admin`                                       | Nome do primeiro login, criado sozinho se o banco não tiver nenhum usuário |
 | `ADMIN_PASSWORD`         | *(gera uma aleatória e loga se não definir)*  | Senha do primeiro login                  |
 | `RESET_ADMIN_PASSWORD`   | `false`                                       | `true` força redefinir a senha de `ADMIN_USERNAME` no próximo boot, mesmo que já exista — ver **Recuperando o acesso** |
-| `ADS_API_URL`            | `https://hom.adsapi.com.br`                   | URL base da API da ADS (histórico de vendas) |
-| `ADS_EMAIL` / `ADS_SENHA` | *(vazio)*                                    | Login da API da ADS — ver **Integração com a ADS** |
+| `ADS_API_URL`            | `https://adsapi.com.br`                       | URL base da API da ADS (histórico de vendas) — produção, não homologação |
+| `ADS_API_KEY`            | *(vazio)*                                     | Header `x-api-key` da API da ADS — ver **Integração com a ADS** |
+| `ADS_USER_AGENT`         | `SulBiologic`                                 | Header `User-Agent` exigido pela API da ADS |
+| `ADS_ESPECIFICO_ID`      | `074`                                          | Valor fixo da conta, exigido em toda chamada de histórico de vendas (não é um filtro) |
 | `ADS_CNPJ_DISTRIBUIDORA` | *(vazio)*                                    | CNPJ da distribuidora, usado como path param nas chamadas à ADS |
 
 ## Integração com a ADS (histórico de vendas)
 
-Em andamento: calcular o `valorRealizado` das metas (`/api/metas-representante`) a partir do
-histórico de vendas da [API da ADS](https://hom.adsapi.com.br/docs/#tag/historico-de-vendas),
-em vez de editar esse valor manualmente.
+O `valorRealizado` das metas (`/api/metas-representante`) é calculado sozinho a partir do
+histórico de vendas da [API da ADS](https://adsapi.com.br/api/v1) — não precisa mais editar esse
+valor na mão (dá pra editar direto se quiser, mas o job de sincronização sobrescreve de novo).
 
-O que já existe (`src/main/java/com/almoxarifado/api/ads`):
+**Autenticação:** confirmada testando direto contra a API de produção — só os headers
+`x-api-key` e `User-Agent`, sem login nem Bearer token (a doc/spec da ADS não documenta isso; o
+ambiente de homologação, `hom.adsapi.com.br`, nem aceita essa autenticação — use sempre
+`adsapi.com.br`, produção).
 
-- `AdsTokenService` — faz login (`POST /api/v1/login` com `ADS_EMAIL`/`ADS_SENHA`) e guarda o
-  token em memória, renovando sozinho.
-- `AdsHistoricoVendasClient` — chama `GET /api/v1/{cnpjDistribuidora}/historico-de-vendas`,
-  pagina os resultados sozinho e devolve os pedidos já tipados (`AdsVenda`).
+**`especificoid`:** é um valor fixo da conta (`ADS_ESPECIFICO_ID`, ex: `074`), não um filtro —
+testado com outros valores e todos deram `400`. Vai sempre igual em toda chamada.
 
-O que falta antes de ligar isso ao cálculo de `valorRealizado`:
+**Como cada representante/meta se liga à ADS:**
 
-1. **O parâmetro `especificoid`** é obrigatório na consulta de histórico de vendas, mas a ADS não
-   documenta o que ele representa (não tem descrição nem exemplo na spec). Precisa confirmar com o
-   suporte da ADS — só depois dá pra saber de onde tirar esse valor (fixo? por fornecedor? por
-   representante?) e cadastrar o campo certo em `Fornecedor`/`Representante` pra guardá-lo.
-2. **Mapear `Meta.nome` pros dados da venda.** As metas (ex: "Vitta", "Geral", "Umidos", "Cookie")
-   provavelmente correspondem a `itens[].divisao.descricao` no retorno da ADS, mas isso também
-   precisa ser confirmado antes de somar quantidades/valores errados.
-3. Depois disso: decidir o período de apuração (mês corrente? ciclo customizado?), escrever o
-   serviço que soma `itens[].quantidade` (metas em `KG`/`UNIDADE`) ou `itens[].valores.valorProduto`
-   (metas em `REAL`) por representante+meta, e um jeito de disparar o recálculo (endpoint manual,
-   ou agendado).
+- Cada **Representante** tem um campo opcional `codigoAds`, preenchido na tela de cadastro —
+  é o `codigo` dele na ADS (`GET /api/v1/{cnpj}/representantes`), usado como `repr_id` na consulta
+  de histórico de vendas.
+- Cada **Meta** tem um campo opcional `codigoAdsDivisao`, preenchido na tela de cadastro — é o
+  `codigo` da divisão correspondente na ADS (`GET /api/v1/{cnpj}/divisoes`), usado pra filtrar
+  `itens[].divisao.id` dentro do histórico de vendas daquele representante.
+- Representante ou meta sem esses campos preenchidos simplesmente não são sincronizados (o resto
+  do app funciona igual, com edição manual do `valorRealizado`).
+
+**Cálculo:** `AdsSincronizacaoService` busca, uma vez por representante (com `codigoAds`
+preenchido), todo o histórico de vendas do mês corrente (dia 1 até hoje) filtrado por `repr_id`.
+Pra cada meta atribuída a esse representante (com `codigoAdsDivisao` preenchido), soma os itens
+cuja `divisao.id` bate com o código da meta:
+
+| Unidade da meta | Campo somado |
+|---|---|
+| `REAL` | `itens[].valores.valorProduto` |
+| `KG` | `itens[].peso.liquido` |
+| `UNIDADE` | `itens[].quantidade` |
+
+**Quando roda:** todo dia às 6h (`@Scheduled` em `AdsSincronizacaoService`), recalculando o mês
+inteiro do zero (não é incremental). Também dá pra forçar na hora: `POST
+/api/metas-representante/sincronizar` (exige ser ADMIN, mesma resposta de `GET
+/api/metas-representante`).
+
+Se a ADS estiver fora do ar ou recusar a chamada pra um representante, esse representante fica de
+fora do recálculo daquela vez (loga um aviso) — os outros continuam normalmente.
 
 ## Deploy (Railway)
 

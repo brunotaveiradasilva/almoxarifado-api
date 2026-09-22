@@ -32,6 +32,11 @@ services:
       JWT_SECRET: chave-so-para-desenvolvimento-local-nao-use-isto-em-producao
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: admin123
+      ADS_API_URL: ${ADS_API_URL:-https://adsapi.com.br}
+      ADS_API_KEY: ${ADS_API_KEY:-}
+      ADS_USER_AGENT: ${ADS_USER_AGENT:-SulBiologic}
+      ADS_ESPECIFICO_ID: ${ADS_ESPECIFICO_ID:-074}
+      ADS_CNPJ_DISTRIBUIDORA: ${ADS_CNPJ_DISTRIBUIDORA:-}
     ports:
       - "8080:8080"
 

@@ -9,6 +9,7 @@ public record RepresentanteRequest(
         @NotBlank(message = "Informe o nome do representante") String nome,
         @NotEmpty(message = "Selecione ao menos um fornecedor") List<String> fornecedorIds,
         String email,
-        String celular
+        String celular,
+        String codigoAds
 ) {
 }
