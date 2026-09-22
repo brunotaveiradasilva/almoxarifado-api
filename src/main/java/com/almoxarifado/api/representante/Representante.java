@@ -44,6 +44,13 @@ public class Representante {
     /** Código desse representante na API da ADS (histórico de vendas) — vazio se ele não é sincronizado automaticamente. */
     private String codigoAds;
 
+    /**
+     * Total vendido em R$ por esse representante no mês corrente, somando TODOS os fornecedores
+     * e divisões (não só o que está mapeado em alguma meta) — atualizado junto com o
+     * valorRealizado das metas, em AdsSincronizacaoService. Null se ele nunca foi sincronizado.
+     */
+    private Double totalVendidoAds;
+
     public Representante() {
     }
 
@@ -93,5 +100,13 @@ public class Representante {
 
     public void setCodigoAds(String codigoAds) {
         this.codigoAds = codigoAds;
+    }
+
+    public Double getTotalVendidoAds() {
+        return totalVendidoAds;
+    }
+
+    public void setTotalVendidoAds(Double totalVendidoAds) {
+        this.totalVendidoAds = totalVendidoAds;
     }
 }

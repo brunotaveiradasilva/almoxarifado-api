@@ -174,7 +174,11 @@ testado com outros valores e todos deram `400`. Vai sempre igual em toda chamada
 **Cálculo:** `AdsSincronizacaoService` busca, uma vez por representante (com `codigoAds`
 preenchido), todo o histórico de vendas do mês corrente (dia 1 até hoje) filtrado por `repr_id`.
 Pra cada meta atribuída a esse representante, soma por `cnpjAdsFornecedor` (toda venda desse
-fornecedor) ou por `codigoAdsDivisao` (só os itens cuja `divisao.id` bate com um dos códigos):
+fornecedor) ou por `codigoAdsDivisao` (só os itens cuja `divisao.id` bate com um dos códigos).
+Também soma **todo** o histórico do mês (todos os fornecedores e divisões, sem filtro nenhum) e
+salva em `Representante.totalVendidoAds` — é esse número que a tela mostra no card "Total
+vendido" (por isso pode ser maior que a soma das metas: uma meta "Geral" por fornecedor, por
+exemplo, já duplica o que outra meta mais específica desse mesmo fornecedor também conta).
 
 | Unidade da meta | Campo somado |
 |---|---|
