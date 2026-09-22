@@ -32,8 +32,10 @@ import org.springframework.stereotype.Service;
  * </ul>
  *
  * Cada um soma quantidade (UNIDADE), peso bruto (KG — confirmado batendo com o valor esperado
- * pelo usuário; peso líquido dava um número menor) ou valor do produto (REAL). Representante
- * ou meta sem nenhum dos dois códigos cadastrado fica de fora, sem erro.
+ * pelo usuário; peso líquido dava um número menor) ou valor do produto (REAL), considerando o
+ * tipo de operação de cada pedido (ver {@link #sinal(AdsVenda)}): venda soma, devolução desconta,
+ * bonificação não conta. Representante ou meta sem nenhum dos dois códigos cadastrado fica de
+ * fora, sem erro.
  *
  * Também atualiza {@link Representante#getTotalVendidoAds()}: a soma de TODO o histórico de
  * vendas do representante no mês (todos os fornecedores/divisões, não só o que está mapeado em
@@ -82,8 +84,9 @@ public class AdsSincronizacaoService {
                 }
 
                 double totalVendido = vendas.stream()
-                        .flatMap(v -> v.itens().stream())
-                        .mapToDouble(item -> item.valores().valorProduto())
+                        .mapToDouble(v -> sinal(v) * v.itens().stream()
+                                .mapToDouble(item -> item.valores().valorProduto())
+                                .sum())
                         .sum();
                 representante.setTotalVendidoAds(totalVendido);
                 representantes.save(representante);
@@ -99,8 +102,9 @@ public class AdsSincronizacaoService {
         if (temCodigo(meta.getCnpjAdsFornecedor())) {
             return vendas.stream()
                     .filter(v -> meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj()))
-                    .flatMap(v -> v.itens().stream())
-                    .mapToDouble(item -> valor(item, meta.getUnidade()))
+                    .mapToDouble(v -> sinal(v) * v.itens().stream()
+                            .mapToDouble(item -> valor(item, meta.getUnidade()))
+                            .sum())
                     .sum();
         }
 
@@ -108,10 +112,26 @@ public class AdsSincronizacaoService {
                 .map(String::trim)
                 .collect(Collectors.toSet());
         return vendas.stream()
-                .flatMap(v -> v.itens().stream())
-                .filter(item -> divisoes.contains(item.divisao().id()))
-                .mapToDouble(item -> valor(item, meta.getUnidade()))
+                .mapToDouble(v -> sinal(v) * v.itens().stream()
+                        .filter(item -> divisoes.contains(item.divisao().id()))
+                        .mapToDouble(item -> valor(item, meta.getUnidade()))
+                        .sum())
                 .sum();
+    }
+
+    /**
+     * Nem todo pedido da ADS é uma venda de verdade: bonificação (brinde/troca promocional) não
+     * conta pro realizado, e devolução desconta o que tinha sido contado antes. Só
+     * "VENDA DE MERCADORIA" soma; o que tem "DEV" no nome da operação subtrai; bonificação e
+     * qualquer operação não reconhecida ficam de fora (soma zero), pra nunca contar algo errado
+     * por engano.
+     */
+    private int sinal(AdsVenda venda) {
+        String operacao = venda.operacao() == null ? "" : venda.operacao().toUpperCase();
+        if (operacao.contains("BONIFICA")) return 0;
+        if (operacao.contains("DEV")) return -1;
+        if (operacao.contains("VENDA")) return 1;
+        return 0;
     }
 
     private double valor(AdsItemVenda item, UnidadeMeta unidade) {

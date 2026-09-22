@@ -186,6 +186,12 @@ exemplo, já duplica o que outra meta mais específica desse mesmo fornecedor ta
 | `KG` | `itens[].peso.bruto` |
 | `UNIDADE` | `itens[].quantidade` |
 
+Cada pedido pesa diferente na soma dependendo do campo `operacao` que a ADS manda: pedidos
+`"VENDA DE MERCADORIA"` somam normal, os que têm `"DEV"` no nome (devolução) **descontam**, e
+bonificação (`"BONIFICACAO CREDITO"`, `"BONIFICACAO TROCA"` — brinde/troca promocional, não é
+venda de verdade) **não conta nem soma nem desconta**. Qualquer operação não reconhecida também
+fica de fora, por segurança (ver `AdsSincronizacaoService.sinal`).
+
 **Quando roda:** todo dia às 6h (`@Scheduled` em `AdsSincronizacaoService`), recalculando o mês
 inteiro do zero (não é incremental). Também dá pra forçar na hora: `POST
 /api/metas-representante/sincronizar` (exige ser ADMIN, mesma resposta de `GET
