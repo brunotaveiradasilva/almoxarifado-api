@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 record AdsVenda(
         LocalDateTime dataFaturamento,
         long pedidoId,
+        String operacao,
         AdsFornecedor fornecedor,
         AdsRepresentante representante,
         List<AdsItemVenda> itens) {
