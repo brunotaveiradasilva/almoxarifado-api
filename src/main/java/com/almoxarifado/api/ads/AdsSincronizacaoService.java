@@ -12,6 +12,7 @@ import com.almoxarifado.api.meta.UnidadeMeta;
 import com.almoxarifado.api.metarepresentante.MetaRepresentante;
 import com.almoxarifado.api.metarepresentante.MetaRepresentanteRepository;
 import com.almoxarifado.api.representante.Representante;
+import com.almoxarifado.api.representante.RepresentanteRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,10 @@ import org.springframework.stereotype.Service;
  * Cada um soma quantidade (UNIDADE), peso bruto (KG — confirmado batendo com o valor esperado
  * pelo usuário; peso líquido dava um número menor) ou valor do produto (REAL). Representante
  * ou meta sem nenhum dos dois códigos cadastrado fica de fora, sem erro.
+ *
+ * Também atualiza {@link Representante#getTotalVendidoAds()}: a soma de TODO o histórico de
+ * vendas do representante no mês (todos os fornecedores/divisões, não só o que está mapeado em
+ * alguma meta) — é o número que a tela usa pro card "Total vendido".
  */
 @Service
 public class AdsSincronizacaoService {
@@ -40,10 +45,15 @@ public class AdsSincronizacaoService {
     private static final Logger log = LoggerFactory.getLogger(AdsSincronizacaoService.class);
 
     private final MetaRepresentanteRepository metasRepresentante;
+    private final RepresentanteRepository representantes;
     private final AdsHistoricoVendasClient client;
 
-    public AdsSincronizacaoService(MetaRepresentanteRepository metasRepresentante, AdsHistoricoVendasClient client) {
+    public AdsSincronizacaoService(
+            MetaRepresentanteRepository metasRepresentante,
+            RepresentanteRepository representantes,
+            AdsHistoricoVendasClient client) {
         this.metasRepresentante = metasRepresentante;
+        this.representantes = representantes;
         this.client = client;
     }
 
@@ -70,6 +80,13 @@ public class AdsSincronizacaoService {
                     atribuicao.setValorRealizado(somar(vendas, atribuicao.getMeta()));
                     atualizadas.add(metasRepresentante.save(atribuicao));
                 }
+
+                double totalVendido = vendas.stream()
+                        .flatMap(v -> v.itens().stream())
+                        .mapToDouble(item -> item.valores().valorProduto())
+                        .sum();
+                representante.setTotalVendidoAds(totalVendido);
+                representantes.save(representante);
             } catch (AdsApiException e) {
                 log.warn("Não foi possível sincronizar o representante {} ({}) com a ADS: {}",
                         representante.getNome(), representante.getCodigoAds(), e.getMessage());
