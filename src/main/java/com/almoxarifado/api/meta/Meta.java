@@ -38,8 +38,19 @@ public class Meta {
     @Column(nullable = false)
     private UnidadeMeta unidade;
 
-    /** Código da divisão correspondente na API da ADS (histórico de vendas) — vazio se essa meta não é sincronizada automaticamente. */
+    /**
+     * Código (ou códigos, separados por vírgula) da divisão correspondente na API da ADS —
+     * soma só os itens vendidos nessa(s) divisão(ões). Vazio se essa meta usa
+     * {@link #cnpjAdsFornecedor} ou não é sincronizada automaticamente.
+     */
     private String codigoAdsDivisao;
+
+    /**
+     * CNPJ do fornecedor na API da ADS — alternativa a {@link #codigoAdsDivisao} pra metas
+     * "catch-all" que somam tudo vendido desse fornecedor, não só uma divisão específica
+     * (ex: uma meta "Geral"). Se preenchido, tem prioridade sobre codigoAdsDivisao.
+     */
+    private String cnpjAdsFornecedor;
 
     public Meta() {
     }
@@ -82,5 +93,13 @@ public class Meta {
 
     public void setCodigoAdsDivisao(String codigoAdsDivisao) {
         this.codigoAdsDivisao = codigoAdsDivisao;
+    }
+
+    public String getCnpjAdsFornecedor() {
+        return cnpjAdsFornecedor;
+    }
+
+    public void setCnpjAdsFornecedor(String cnpjAdsFornecedor) {
+        this.cnpjAdsFornecedor = cnpjAdsFornecedor;
     }
 }
