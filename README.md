@@ -111,7 +111,7 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | PUT    | `/api/representantes/{id}`       | Atualiza um representante (exige ser ADMIN)        |
 | DELETE | `/api/representantes/{id}`       | Exclui um representante (exige ser ADMIN)          |
 | GET    | `/api/metas`                 | Lista as metas, com o fornecedor de cada uma (exige ser ADMIN) |
-| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade","codigoAdsDivisao"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; `codigoAdsDivisao` é opcional — ver **Integração com a ADS** — exige ser ADMIN) |
+| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade","codigoAdsDivisao","cnpjAdsFornecedor"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; os dois últimos são opcionais — ver **Integração com a ADS** — exige ser ADMIN) |
 | PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
 | DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
 | GET    | `/api/metas-representante`        | Lista os valores de meta atribuídos aos representantes (exige ser ADMIN) |
@@ -160,16 +160,21 @@ testado com outros valores e todos deram `400`. Vai sempre igual em toda chamada
 - Cada **Representante** tem um campo opcional `codigoAds`, preenchido na tela de cadastro —
   é o `codigo` dele na ADS (`GET /api/v1/{cnpj}/representantes`), usado como `repr_id` na consulta
   de histórico de vendas.
-- Cada **Meta** tem um campo opcional `codigoAdsDivisao`, preenchido na tela de cadastro — é o
-  `codigo` da divisão correspondente na ADS (`GET /api/v1/{cnpj}/divisoes`), usado pra filtrar
-  `itens[].divisao.id` dentro do histórico de vendas daquele representante.
-- Representante ou meta sem esses campos preenchidos simplesmente não são sincronizados (o resto
-  do app funciona igual, com edição manual do `valorRealizado`).
+- Cada **Meta** tem dois campos opcionais, preenchidos na tela de cadastro — só um dos dois é
+  usado por meta (`cnpjAdsFornecedor` tem prioridade se os dois estiverem preenchidos):
+  - `codigoAdsDivisao`: código (ou vários, separados por vírgula, ex: `112,113`) da divisão
+    correspondente na ADS (`GET /api/v1/{cnpj}/divisoes`) — soma só os itens vendidos nessa(s)
+    divisão(ões). Pra metas específicas de uma linha de produto (ex: "Cookie", "Umidos").
+  - `cnpjAdsFornecedor`: CNPJ do fornecedor na ADS (`GET /api/v1/{cnpj}/fornecedores`, campo
+    `cnpjCpf`) — soma tudo vendido desse fornecedor, sem filtrar por divisão. Pra metas
+    "catch-all" tipo "Geral", que somam o fornecedor inteiro.
+- Representante ou meta sem nenhum desses campos preenchidos simplesmente não são sincronizados
+  (o resto do app funciona igual, com edição manual do `valorRealizado`).
 
 **Cálculo:** `AdsSincronizacaoService` busca, uma vez por representante (com `codigoAds`
 preenchido), todo o histórico de vendas do mês corrente (dia 1 até hoje) filtrado por `repr_id`.
-Pra cada meta atribuída a esse representante (com `codigoAdsDivisao` preenchido), soma os itens
-cuja `divisao.id` bate com o código da meta:
+Pra cada meta atribuída a esse representante, soma por `cnpjAdsFornecedor` (toda venda desse
+fornecedor) ou por `codigoAdsDivisao` (só os itens cuja `divisao.id` bate com um dos códigos):
 
 | Unidade da meta | Campo somado |
 |---|---|

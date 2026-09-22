@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.almoxarifado.api.meta.Meta;
@@ -20,9 +21,17 @@ import org.springframework.stereotype.Service;
 /**
  * Recalcula o valorRealizado das metas a partir do histórico de vendas da ADS do mês corrente
  * (dia 1 até hoje). Para cada representante com {@link Representante#getCodigoAds()} preenchido,
- * busca o histórico uma vez só e soma, por meta, os itens cuja divisão bate com
- * {@link Meta#getCodigoAdsDivisao()} — quantidade (UNIDADE), peso líquido (KG) ou valor do
- * produto (REAL). Representante ou meta sem código cadastrado fica de fora, sem erro.
+ * busca o histórico uma vez só e soma, por meta, de um dos dois jeitos:
+ *
+ * <ul>
+ *   <li>{@link Meta#getCnpjAdsFornecedor()} preenchido — soma tudo vendido desse fornecedor
+ *   (todas as divisões), pra metas "catch-all" tipo "Geral". Tem prioridade sobre codigoAdsDivisao.</li>
+ *   <li>{@link Meta#getCodigoAdsDivisao()} preenchido — soma só os itens cuja divisão bate com um
+ *   dos códigos (aceita vários separados por vírgula, ex: "112,113").</li>
+ * </ul>
+ *
+ * Cada um soma quantidade (UNIDADE), peso líquido (KG) ou valor do produto (REAL). Representante
+ * ou meta sem nenhum dos dois códigos cadastrado fica de fora, sem erro.
  */
 @Service
 public class AdsSincronizacaoService {
@@ -48,7 +57,7 @@ public class AdsSincronizacaoService {
         LocalDate fim = LocalDate.now();
 
         Map<String, List<MetaRepresentante>> porRepresentanteId = metasRepresentante.findAll().stream()
-                .filter(mv -> temCodigo(mv.getRepresentante().getCodigoAds()) && temCodigo(mv.getMeta().getCodigoAdsDivisao()))
+                .filter(mv -> temCodigo(mv.getRepresentante().getCodigoAds()) && metaTemCodigo(mv.getMeta()))
                 .collect(Collectors.groupingBy(mv -> mv.getRepresentante().getId()));
 
         List<MetaRepresentante> atualizadas = new ArrayList<>();
@@ -56,9 +65,8 @@ public class AdsSincronizacaoService {
             Representante representante = atribuicoes.get(0).getRepresentante();
             try {
                 List<AdsVenda> vendas = client.buscarTudo(inicio, fim, representante.getCodigoAds());
-                List<AdsItemVenda> itens = vendas.stream().flatMap(v -> v.itens().stream()).toList();
                 for (MetaRepresentante atribuicao : atribuicoes) {
-                    atribuicao.setValorRealizado(somar(itens, atribuicao.getMeta()));
+                    atribuicao.setValorRealizado(somar(vendas, atribuicao.getMeta()));
                     atualizadas.add(metasRepresentante.save(atribuicao));
                 }
             } catch (AdsApiException e) {
@@ -69,9 +77,21 @@ public class AdsSincronizacaoService {
         return atualizadas;
     }
 
-    private double somar(List<AdsItemVenda> itens, Meta meta) {
-        return itens.stream()
-                .filter(item -> meta.getCodigoAdsDivisao().equals(item.divisao().id()))
+    private double somar(List<AdsVenda> vendas, Meta meta) {
+        if (temCodigo(meta.getCnpjAdsFornecedor())) {
+            return vendas.stream()
+                    .filter(v -> meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj()))
+                    .flatMap(v -> v.itens().stream())
+                    .mapToDouble(item -> valor(item, meta.getUnidade()))
+                    .sum();
+        }
+
+        Set<String> divisoes = Set.of(meta.getCodigoAdsDivisao().split(",")).stream()
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        return vendas.stream()
+                .flatMap(v -> v.itens().stream())
+                .filter(item -> divisoes.contains(item.divisao().id()))
                 .mapToDouble(item -> valor(item, meta.getUnidade()))
                 .sum();
     }
@@ -82,6 +102,10 @@ public class AdsSincronizacaoService {
             case KG -> item.peso().liquido();
             case UNIDADE -> item.quantidade();
         };
+    }
+
+    private boolean metaTemCodigo(Meta meta) {
+        return temCodigo(meta.getCnpjAdsFornecedor()) || temCodigo(meta.getCodigoAdsDivisao());
     }
 
     private boolean temCodigo(String codigo) {
