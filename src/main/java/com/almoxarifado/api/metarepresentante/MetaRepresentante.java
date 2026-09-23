@@ -55,6 +55,13 @@ public class MetaRepresentante {
     @Column(name = "valor_realizado", nullable = false)
     private double valorRealizado;
 
+    /**
+     * Só em metas KG: quanto os mesmos itens do realizado deram em R$ (valor do produto), pra tela
+     * mostrar embaixo do nome da meta. Null nas outras unidades e antes da primeira sincronização.
+     */
+    @Column(name = "realizado_em_reais")
+    private Double realizadoEmReais;
+
     public MetaRepresentante() {
     }
 
@@ -104,5 +111,13 @@ public class MetaRepresentante {
 
     public void setValorRealizado(double valorRealizado) {
         this.valorRealizado = valorRealizado;
+    }
+
+    public Double getRealizadoEmReais() {
+        return realizadoEmReais;
+    }
+
+    public void setRealizadoEmReais(Double realizadoEmReais) {
+        this.realizadoEmReais = realizadoEmReais;
     }
 }

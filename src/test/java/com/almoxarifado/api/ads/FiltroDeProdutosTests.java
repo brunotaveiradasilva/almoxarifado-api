@@ -144,6 +144,15 @@ class FiltroDeProdutosTests {
         assertThat(realizado(clientes)).isEqualTo(2);
     }
 
+    @Test
+    void metaEmKgGuardaTambemORealizadoEmReais() {
+        Meta kg = meta(UnidadeMeta.KG, "WELLPET");
+        assertThat(sincronizar(kg).getValorRealizado()).isEqualTo(2);
+        assertThat(sincronizar(kg).getRealizadoEmReais()).isEqualTo(140);
+
+        assertThat(sincronizar(meta(UnidadeMeta.REAL, "")).getRealizadoEmReais()).isNull();
+    }
+
     private Meta meta(UnidadeMeta unidade, String excluidos) {
         Meta meta = new Meta();
         meta.setUnidade(unidade);
@@ -153,12 +162,16 @@ class FiltroDeProdutosTests {
     }
 
     private double realizado(Meta meta) {
+        return sincronizar(meta).getValorRealizado();
+    }
+
+    private MetaRepresentante sincronizar(Meta meta) {
         MetaRepresentante atribuicao = new MetaRepresentante();
         atribuicao.setRepresentante(marye);
         atribuicao.setMeta(meta);
         atribuicao.setMes(Mes.atual().toString());
         when(atribuicoes.findByMes(Mes.atual().toString())).thenReturn(List.of(atribuicao));
-        return servico.sincronizarMes(Mes.atual()).get(0).getValorRealizado();
+        return servico.sincronizarMes(Mes.atual()).get(0);
     }
 
     private void vendas(AdsVenda... vendas) {
