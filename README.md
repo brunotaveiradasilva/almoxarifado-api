@@ -114,10 +114,12 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade","codigoAdsDivisao","cnpjAdsFornecedor"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; os dois últimos são opcionais — ver **Integração com a ADS** — exige ser ADMIN) |
 | PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
 | DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
-| GET    | `/api/metas-representante`        | Lista os valores de meta atribuídos aos representantes (exige ser ADMIN) |
-| POST   | `/api/metas-representante/sincronizar` | Força agora o recálculo do realizado a partir da ADS (exige ser ADMIN) |
-| POST   | `/api/metas-representante`        | Atribui um valor de meta a um representante (`{"representanteId","metaId","valorMeta","valorRealizado"}`, exige ser ADMIN) |
-| PUT    | `/api/metas-representante/{id}`   | Atualiza um valor de meta (exige ser ADMIN)   |
+| GET    | `/api/metas-representante?mes=2026-09` | Lista os valores de meta atribuídos aos representantes — de todos os meses, ou só do `mes` pedido (exige ser ADMIN) |
+| GET    | `/api/metas-representante/totais-vendidos` | Total vendido por representante e mês (card "Total vendido"), vindo da ADS (exige ser ADMIN) |
+| POST   | `/api/metas-representante/copiar` | Copia os valores de meta de um mês pro outro, só onde o destino ainda não tem valor (`{"de":"2026-08","para":"2026-09","fornecedorId"}`, `fornecedorId` opcional; exige ser ADMIN) |
+| POST   | `/api/metas-representante/sincronizar?mes=2026-09` | Força agora o recálculo do realizado a partir da ADS, do `mes` pedido ou do atual (exige ser ADMIN) |
+| POST   | `/api/metas-representante`        | Atribui um valor de meta a um representante (`{"representanteId","metaId","mes","valorMeta"}` — `mes` vazio vale o mês atual; exige ser ADMIN) |
+| PUT    | `/api/metas-representante/{id}`   | Atualiza um valor de meta; o `valorRealizado` não muda por aqui (exige ser ADMIN) |
 | DELETE | `/api/metas-representante/{id}`   | Exclui um valor de meta (exige ser ADMIN)     |
 | GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
@@ -145,7 +147,18 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 
 O `valorRealizado` das metas (`/api/metas-representante`) é calculado sozinho a partir do
 histórico de vendas da [API da ADS](https://adsapi.com.br/api/v1) — não precisa mais editar esse
-valor na mão (dá pra editar direto se quiser, mas o job de sincronização sobrescreve de novo).
+valor na mão (e nem dá: POST/PUT ignoram o `valorRealizado`, ele só muda pela sincronização).
+
+**Metas por mês:** cada valor de meta vale pra um mês (`mes`, formato `2026-09`), já que a meta de
+um representante pode mudar de um mês pro outro. Ficam na tabela `metas_representante_mensal`,
+com um registro por representante + meta + mês. A tabela antiga, `metas_representante` (sem mês),
+é copiada pra nova como o mês em que a API subiu e depois apagada, uma vez só, no boot
+(`MigracaoMetasPorMes`). O "mês atual" segue o horário de Brasília.
+
+**Mês fechado:** quando o mês acaba, as metas dele ficam só pra consulta — em outubro não dá mais
+pra criar, editar, excluir nem copiar metas pra setembro (a API responde `409`, ver
+`Mes.garantirAberto`). O mês atual e os meses futuros continuam abertos. O realizado não entra
+nessa regra: ele continua vindo da ADS (inclusive o do mês anterior, do dia 1 ao 5).
 
 **Autenticação:** confirmada testando direto contra a API de produção — só os headers
 `x-api-key` e `User-Agent`, sem login nem Bearer token (a doc/spec da ADS não documenta isso; o
@@ -169,14 +182,16 @@ testado com outros valores e todos deram `400`. Vai sempre igual em toda chamada
     `cnpjCpf`) — soma tudo vendido desse fornecedor, sem filtrar por divisão. Pra metas
     "catch-all" tipo "Geral", que somam o fornecedor inteiro.
 - Representante ou meta sem nenhum desses campos preenchidos simplesmente não são sincronizados
-  (o resto do app funciona igual, com edição manual do `valorRealizado`).
+  (o `valorRealizado` deles fica em 0 — ele não é editável na mão).
 
 **Cálculo:** `AdsSincronizacaoService` busca, uma vez por representante (com `codigoAds`
-preenchido), todo o histórico de vendas do mês corrente (dia 1 até hoje) filtrado por `repr_id`.
+preenchido), todo o histórico de vendas do mês sincronizado (dia 1 até o fim do mês, ou até hoje no mês atual)
+filtrado por `repr_id`.
 Pra cada meta atribuída a esse representante, soma por `cnpjAdsFornecedor` (toda venda desse
 fornecedor) ou por `codigoAdsDivisao` (só os itens cuja `divisao.id` bate com um dos códigos).
 Também soma **todo** o histórico do mês (todos os fornecedores e divisões, sem filtro nenhum) e
-salva em `Representante.totalVendidoAds` — é esse número que a tela mostra no card "Total
+salva em `TotalVendidoMensal` (um por representante e mês; no mês atual também em
+`Representante.totalVendidoAds`, o campo antigo) — é esse número que a tela mostra no card "Total
 vendido" (por isso pode ser maior que a soma das metas: uma meta "Geral" por fornecedor, por
 exemplo, já duplica o que outra meta mais específica desse mesmo fornecedor também conta).
 
@@ -192,10 +207,11 @@ bonificação (`"BONIFICACAO CREDITO"`, `"BONIFICACAO TROCA"` — brinde/troca p
 venda de verdade) **não conta nem soma nem desconta**. Qualquer operação não reconhecida também
 fica de fora, por segurança (ver `AdsSincronizacaoService.sinal`).
 
-**Quando roda:** todo dia às 6h (`@Scheduled` em `AdsSincronizacaoService`), recalculando o mês
-inteiro do zero (não é incremental). Também dá pra forçar na hora: `POST
-/api/metas-representante/sincronizar` (exige ser ADMIN, mesma resposta de `GET
-/api/metas-representante`).
+**Quando roda:** todo dia às 6h de Brasília (`@Scheduled` em `AdsSincronizacaoService`),
+recalculando o mês atual inteiro do zero (não é incremental). Do dia 1 ao dia 5 também refaz o mês
+anterior, pra fechar ele com o que a ADS lança atrasado. Também dá pra forçar na hora, de qualquer
+mês: `POST /api/metas-representante/sincronizar?mes=2026-09` (exige ser ADMIN; devolve as
+atribuições atualizadas).
 
 Se a ADS estiver fora do ar ou recusar a chamada pra um representante, esse representante fica de
 fora do recálculo daquela vez (loga um aviso) — os outros continuam normalmente.

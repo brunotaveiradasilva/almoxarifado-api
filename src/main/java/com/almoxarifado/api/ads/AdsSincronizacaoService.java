@@ -1,6 +1,7 @@
 package com.almoxarifado.api.ads;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,9 @@ import com.almoxarifado.api.meta.Meta;
 import com.almoxarifado.api.meta.UnidadeMeta;
 import com.almoxarifado.api.metarepresentante.MetaRepresentante;
 import com.almoxarifado.api.metarepresentante.MetaRepresentanteRepository;
+import com.almoxarifado.api.metarepresentante.Mes;
+import com.almoxarifado.api.metarepresentante.TotalVendidoMensal;
+import com.almoxarifado.api.metarepresentante.TotalVendidoMensalRepository;
 import com.almoxarifado.api.representante.Representante;
 import com.almoxarifado.api.representante.RepresentanteRepository;
 
@@ -20,8 +24,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 /**
- * Recalcula o valorRealizado das metas a partir do histórico de vendas da ADS do mês corrente
- * (dia 1 até hoje). Para cada representante com {@link Representante#getCodigoAds()} preenchido,
+ * Recalcula o valorRealizado das metas de um mês a partir do histórico de vendas da ADS desse mês
+ * (dia 1 até o fim do mês, ou até hoje no mês atual). Para cada representante com {@link Representante#getCodigoAds()} preenchido,
  * busca o histórico uma vez só e soma, por meta, de um dos dois jeitos:
  *
  * <ul>
@@ -37,9 +41,9 @@ import org.springframework.stereotype.Service;
  * bonificação não conta. Representante ou meta sem nenhum dos dois códigos cadastrado fica de
  * fora, sem erro.
  *
- * Também atualiza {@link Representante#getTotalVendidoAds()}: a soma de TODO o histórico de
- * vendas do representante no mês (todos os fornecedores/divisões, não só o que está mapeado em
- * alguma meta) — é o número que a tela usa pro card "Total vendido".
+ * Também grava um {@link TotalVendidoMensal}: a soma de TODO o histórico de vendas do
+ * representante no mês (todos os fornecedores/divisões, não só o que está mapeado em alguma meta)
+ * — é o número que a tela usa pro card "Total vendido".
  */
 @Service
 public class AdsSincronizacaoService {
@@ -47,29 +51,47 @@ public class AdsSincronizacaoService {
     private static final Logger log = LoggerFactory.getLogger(AdsSincronizacaoService.class);
 
     private final MetaRepresentanteRepository metasRepresentante;
+    private final TotalVendidoMensalRepository totais;
     private final RepresentanteRepository representantes;
     private final AdsHistoricoVendasClient client;
 
     public AdsSincronizacaoService(
             MetaRepresentanteRepository metasRepresentante,
+            TotalVendidoMensalRepository totais,
             RepresentanteRepository representantes,
             AdsHistoricoVendasClient client) {
         this.metasRepresentante = metasRepresentante;
+        this.totais = totais;
         this.representantes = representantes;
         this.client = client;
     }
 
-    @Scheduled(cron = "0 0 6 * * *")
+    /**
+     * Todo dia sincroniza o mês atual. Nos primeiros dias do mês também refaz o mês anterior, pra
+     * fechar ele com as vendas e devoluções que a ADS ainda lança com atraso.
+     */
+    @Scheduled(cron = "0 0 6 * * *", zone = "America/Sao_Paulo")
     public void sincronizarAgendado() {
-        sincronizarTudo();
+        YearMonth atual = Mes.atual();
+        sincronizarMes(atual);
+        if (LocalDate.now(Mes.FUSO).getDayOfMonth() <= 5) {
+            sincronizarMes(atual.minusMonths(1));
+        }
     }
 
-    /** Recalcula e salva o valorRealizado de toda atribuição cujo representante e meta têm código ADS cadastrado. */
-    public List<MetaRepresentante> sincronizarTudo() {
-        LocalDate inicio = LocalDate.now().withDayOfMonth(1);
-        LocalDate fim = LocalDate.now();
+    /**
+     * Recalcula e salva o valorRealizado das atribuições do mês cujo representante e meta têm código
+     * ADS cadastrado, com as vendas do dia 1 ao último dia do mês (ou até hoje, se for o mês atual).
+     * Mês futuro não tem venda: não faz nada.
+     */
+    public List<MetaRepresentante> sincronizarMes(YearMonth mes) {
+        LocalDate hoje = LocalDate.now(Mes.FUSO);
+        LocalDate inicio = mes.atDay(1);
+        if (inicio.isAfter(hoje)) return List.of();
+        LocalDate fim = mes.atEndOfMonth().isAfter(hoje) ? hoje : mes.atEndOfMonth();
+        boolean mesAtual = mes.equals(Mes.atual());
 
-        Map<String, List<MetaRepresentante>> porRepresentanteId = metasRepresentante.findAll().stream()
+        Map<String, List<MetaRepresentante>> porRepresentanteId = metasRepresentante.findByMes(mes.toString()).stream()
                 .filter(mv -> temCodigo(mv.getRepresentante().getCodigoAds()) && metaTemCodigo(mv.getMeta()))
                 .collect(Collectors.groupingBy(mv -> mv.getRepresentante().getId()));
 
@@ -88,8 +110,16 @@ public class AdsSincronizacaoService {
                                 .mapToDouble(item -> item.valores().valorProduto())
                                 .sum())
                         .sum();
-                representante.setTotalVendidoAds(totalVendido);
-                representantes.save(representante);
+                TotalVendidoMensal total = totais.findByRepresentanteIdAndMes(representanteId, mes.toString())
+                        .orElseGet(() -> new TotalVendidoMensal(representanteId, mes.toString()));
+                total.setTotal(totalVendido);
+                totais.save(total);
+
+                // Campo antigo, sem mês: continua sendo o total do mês atual, pra quem ainda lê ele.
+                if (mesAtual) {
+                    representante.setTotalVendidoAds(totalVendido);
+                    representantes.save(representante);
+                }
             } catch (AdsApiException e) {
                 log.warn("Não foi possível sincronizar o representante {} ({}) com a ADS: {}",
                         representante.getNome(), representante.getCodigoAds(), e.getMessage());

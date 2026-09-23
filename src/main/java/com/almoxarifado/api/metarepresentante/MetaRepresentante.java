@@ -13,11 +13,19 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-/** O valor de uma meta atribuído a um representante específico: quanto ele precisa bater e quanto já bateu. */
+/**
+ * O valor de uma meta atribuído a um representante num mês: quanto ele precisa bater e quanto já bateu.
+ * Um registro por representante + meta + mês, já que a meta pode mudar de um mês pro outro.
+ *
+ * <p>Mora na tabela metas_representante_mensal; a antiga metas_representante (sem mês) é migrada pra
+ * cá uma vez só por {@link MigracaoMetasPorMes}.
+ */
 @Entity
-@Table(name = "metas_representante", uniqueConstraints = @UniqueConstraint(columnNames = { "representante_id", "meta_id" }))
+@Table(name = "metas_representante_mensal", uniqueConstraints = @UniqueConstraint(
+        name = "uk_meta_representante_mes", columnNames = { "representante_id", "meta_id", "mes" }))
 public class MetaRepresentante {
 
     @Id
@@ -33,6 +41,11 @@ public class MetaRepresentante {
     @ManyToOne(optional = false)
     @JoinColumn(name = "meta_id", nullable = false)
     private Meta meta;
+
+    /** Mês de referência, no formato "2026-09" (ver {@link Mes}). */
+    @NotBlank(message = "Informe o mês")
+    @Column(nullable = false, length = 7)
+    private String mes;
 
     @DecimalMin(value = "0", message = "A meta não pode ser negativa")
     @Column(name = "valor_meta", nullable = false)
@@ -67,6 +80,14 @@ public class MetaRepresentante {
 
     public void setMeta(Meta meta) {
         this.meta = meta;
+    }
+
+    public String getMes() {
+        return mes;
+    }
+
+    public void setMes(String mes) {
+        this.mes = mes;
     }
 
     public double getValorMeta() {
