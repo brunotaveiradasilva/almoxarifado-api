@@ -8,6 +8,7 @@ public record MetaRequest(
         @NotBlank(message = "Informe o fornecedor") String fornecedorId,
         @NotNull(message = "Informe a unidade de medida") UnidadeMeta unidade,
         String codigoAdsDivisao,
-        String cnpjAdsFornecedor
+        String cnpjAdsFornecedor,
+        String produtosExcluidos
 ) {
 }

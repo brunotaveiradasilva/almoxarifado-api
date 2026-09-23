@@ -54,6 +54,13 @@ public class Meta {
      */
     private String cnpjAdsFornecedor;
 
+    /**
+     * Produtos que não contam pra essa meta, separados por vírgula. Cada um é o código do produto
+     * na ADS (ex: "5085") ou um trecho do nome (ex: "WELLPET" tira todas as apresentações) — pra
+     * metas tipo "Ourofino sem Wellpet". Vale tanto com cnpjAdsFornecedor quanto com codigoAdsDivisao.
+     */
+    private String produtosExcluidos;
+
     public Meta() {
     }
 
@@ -103,5 +110,13 @@ public class Meta {
 
     public void setCnpjAdsFornecedor(String cnpjAdsFornecedor) {
         this.cnpjAdsFornecedor = cnpjAdsFornecedor;
+    }
+
+    public String getProdutosExcluidos() {
+        return produtosExcluidos;
+    }
+
+    public void setProdutosExcluidos(String produtosExcluidos) {
+        this.produtosExcluidos = produtosExcluidos;
     }
 }
