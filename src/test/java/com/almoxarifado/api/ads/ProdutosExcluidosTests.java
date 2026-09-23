@@ -1,6 +1,7 @@
 package com.almoxarifado.api.ads;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -21,11 +22,10 @@ import com.almoxarifado.api.representante.RepresentanteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Metas CLIENTES contam clientes diferentes com saldo positivo, em vez de somar os itens. */
-class PositivacaoClientesTests {
+/** Produtos excluídos da meta (ex: "Ourofino sem Wellpet") não contam no realizado. */
+class ProdutosExcluidosTests {
 
-    static final String PREMIER = "46325254000180";
-    static final String OUTRO = "20258278000685";
+    static final String OUROFINO = "57511234000148";
 
     MetaRepresentanteRepository atribuicoes = mock(MetaRepresentanteRepository.class);
     TotalVendidoMensalRepository totais = mock(TotalVendidoMensalRepository.class);
@@ -43,48 +43,54 @@ class PositivacaoClientesTests {
         marye.setCodigoAds("003");
         when(atribuicoes.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(totais.findByRepresentanteIdAndMes(anyString(), anyString())).thenReturn(Optional.empty());
+        vendas(
+                venda("1", item("5085", "WELLPET 400MG (20,1 A 40KG)", "120", 65.98)),
+                venda("1", item("5084", "Wellpet 200MG (10,1 A 20KG)", "120", 57.68), item("900", "OUROVET X", "121", 100)),
+                venda("2", item("901", "OUROVET Y", "121", 40)));
     }
 
     @Test
-    void contaClientesDiferentesDoFornecedor() {
-        vendas(
-                venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 50)),
-                venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 30)), // mesmo cliente: conta uma vez
-                venda("VENDA DE MERCADORIA", PREMIER, "2", item("101", 10)),
-                venda("VENDA DE MERCADORIA", OUTRO, "3", item("120", 99))); // outro fornecedor: fora
-
-        assertThat(realizado(metaPorCnpj(PREMIER))).isEqualTo(2);
+    void semExclusaoContaTudo() {
+        assertThat(realizado(meta(UnidadeMeta.REAL, ""))).isEqualTo(65.98 + 57.68 + 100 + 40, offset(0.001));
     }
 
     @Test
-    void devolucaoTotalEBonificacaoNaoPositivam() {
-        vendas(
-                venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 50)),
-                venda("DEVOLUCAO DE VENDA", PREMIER, "1", item("100", 50)), // devolveu tudo
-                venda("BONIFICACAO", PREMIER, "2", item("100", 40)), // só brinde
-                venda("VENDA DE MERCADORIA", PREMIER, "3", item("100", 20)),
-                venda("DEVOLUCAO DE VENDA", PREMIER, "3", item("100", 5))); // devolução parcial: segue positivado
-
-        assertThat(realizado(metaPorCnpj(PREMIER))).isEqualTo(1);
+    void excluiPorTrechoDoNomeSemDiferenciarMaiuscula() {
+        assertThat(realizado(meta(UnidadeMeta.REAL, "wellpet"))).isEqualTo(140);
     }
 
     @Test
-    void porDivisaoSoContaQuemComprouNaDivisao() {
-        vendas(
-                venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 50), item("200", 10)),
-                venda("VENDA DE MERCADORIA", PREMIER, "2", item("200", 10)),
-                venda("VENDA DE MERCADORIA", PREMIER, "3", item("101", 10)));
+    void excluiPorCodigoDoProduto() {
+        assertThat(realizado(meta(UnidadeMeta.REAL, "5085, 900"))).isEqualTo(57.68 + 40, offset(0.001));
+    }
 
+    @Test
+    void codigoNaoBateComPedacoDeOutroCodigo() {
+        assertThat(realizado(meta(UnidadeMeta.UNIDADE, "90"))).isEqualTo(4);
+    }
+
+    @Test
+    void positivacaoIgnoraClienteQueSoComprouOExcluido() {
+        vendas(
+                venda("1", item("5085", "WELLPET 400MG", "120", 65.98)),
+                venda("2", item("901", "OUROVET Y", "121", 40)));
+        assertThat(realizado(meta(UnidadeMeta.CLIENTES, "WELLPET"))).isEqualTo(1);
+    }
+
+    @Test
+    void valeTambemPraMetaPorDivisao() {
         Meta meta = new Meta();
-        meta.setUnidade(UnidadeMeta.CLIENTES);
-        meta.setCodigoAdsDivisao("100, 101");
-        assertThat(realizado(meta)).isEqualTo(2);
+        meta.setUnidade(UnidadeMeta.REAL);
+        meta.setCodigoAdsDivisao("120,121");
+        meta.setProdutosExcluidos("WELLPET");
+        assertThat(realizado(meta)).isEqualTo(140);
     }
 
-    private Meta metaPorCnpj(String cnpj) {
+    private Meta meta(UnidadeMeta unidade, String excluidos) {
         Meta meta = new Meta();
-        meta.setUnidade(UnidadeMeta.CLIENTES);
-        meta.setCnpjAdsFornecedor(cnpj);
+        meta.setUnidade(unidade);
+        meta.setCnpjAdsFornecedor(OUROFINO);
+        meta.setProdutosExcluidos(excluidos);
         return meta;
     }
 
@@ -101,13 +107,13 @@ class PositivacaoClientesTests {
         when(client.buscarTudo(any(), any(), anyString())).thenReturn(List.of(vendas));
     }
 
-    private static AdsVenda venda(String operacao, String cnpjFornecedor, String clienteId, AdsItemVenda... itens) {
-        return new AdsVenda(null, 1, operacao, new AdsVenda.AdsFornecedor(cnpjFornecedor),
+    private static AdsVenda venda(String clienteId, AdsItemVenda... itens) {
+        return new AdsVenda(null, 1, "VENDA DE MERCADORIA", new AdsVenda.AdsFornecedor(OUROFINO),
                 new AdsVenda.AdsCliente(clienteId), new AdsVenda.AdsRepresentante("003", null, "Marye"), List.of(itens));
     }
 
-    private static AdsItemVenda item(String divisao, double valor) {
-        return new AdsItemVenda(null, new AdsItemVenda.AdsDivisao(divisao, null), 1,
+    private static AdsItemVenda item(String produtoId, String descricao, String divisao, double valor) {
+        return new AdsItemVenda(new AdsItemVenda.AdsProduto(produtoId, descricao), new AdsItemVenda.AdsDivisao(divisao, null), 1,
                 new AdsItemVenda.AdsValoresItem(valor), new AdsItemVenda.AdsPeso(1, 1));
     }
 }

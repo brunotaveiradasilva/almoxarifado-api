@@ -3,6 +3,7 @@ package com.almoxarifado.api.ads;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,8 @@ import org.springframework.stereotype.Service;
  * tipo de operação de cada pedido (ver {@link #sinal(AdsVenda)}): venda soma, devolução desconta,
  * bonificação não conta. Metas CLIENTES (positivação) em vez de somar contam quantos clientes
  * diferentes ficaram com saldo positivo em R$ nesses mesmos itens. Representante ou meta sem nenhum
- * dos dois códigos cadastrado fica de fora, sem erro.
+ * dos dois códigos cadastrado fica de fora, sem erro. Nos dois jeitos, itens que batem com
+ * {@link Meta#getProdutosExcluidos()} (código do produto ou trecho do nome) não contam.
  *
  * Também grava um {@link TotalVendidoMensal}: a soma de TODO o histórico de vendas do
  * representante no mês (todos os fornecedores/divisões, não só o que está mapeado em alguma meta)
@@ -151,13 +153,38 @@ public class AdsSincronizacaoService {
                 .sum();
     }
 
-    /** Com cnpjAdsFornecedor todo item do pedido conta (o filtro é no pedido); senão, só os das divisões da meta. */
+    /**
+     * Com cnpjAdsFornecedor todo item do pedido conta (o filtro é no pedido); senão, só os das divisões da meta.
+     * Nos dois casos, os produtos excluídos da meta ficam de fora.
+     */
     private Predicate<AdsItemVenda> itemDaMeta(Meta meta) {
+        return itemIncluido(meta).and(itemExcluido(meta).negate());
+    }
+
+    private Predicate<AdsItemVenda> itemIncluido(Meta meta) {
         if (temCodigo(meta.getCnpjAdsFornecedor())) return item -> true;
-        Set<String> divisoes = Set.of(meta.getCodigoAdsDivisao().split(",")).stream()
-                .map(String::trim)
-                .collect(Collectors.toSet());
+        Set<String> divisoes = separarPorVirgula(meta.getCodigoAdsDivisao());
         return item -> divisoes.contains(item.divisao().id());
+    }
+
+    /** Só dígitos é o código do produto na ADS (tem que ser igual); texto é um trecho do nome, sem diferenciar maiúscula. */
+    private Predicate<AdsItemVenda> itemExcluido(Meta meta) {
+        if (!temCodigo(meta.getProdutosExcluidos())) return item -> false;
+        Set<String> excluidos = separarPorVirgula(meta.getProdutosExcluidos().toUpperCase());
+        return item -> {
+            if (item.produto() == null) return false;
+            String descricao = item.produto().descricao() == null ? "" : item.produto().descricao().toUpperCase();
+            return excluidos.stream().anyMatch(ex -> ex.chars().allMatch(Character::isDigit)
+                    ? ex.equals(item.produto().id())
+                    : descricao.contains(ex));
+        };
+    }
+
+    private Set<String> separarPorVirgula(String texto) {
+        return Arrays.stream(texto.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
     }
 
     /**

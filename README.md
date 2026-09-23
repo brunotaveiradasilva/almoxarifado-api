@@ -181,6 +181,11 @@ testado com outros valores e todos deram `400`. Vai sempre igual em toda chamada
   - `cnpjAdsFornecedor`: CNPJ do fornecedor na ADS (`GET /api/v1/{cnpj}/fornecedores`, campo
     `cnpjCpf`) — soma tudo vendido desse fornecedor, sem filtrar por divisão. Pra metas
     "catch-all" tipo "Geral", que somam o fornecedor inteiro.
+- Cada **Meta** também pode ter `produtosExcluidos`: produtos que não contam pra ela, separados
+  por vírgula. Só dígitos é o `itens[].produto.id` da ADS (ex: `5085`); texto é um trecho de
+  `itens[].produto.descricao`, sem diferenciar maiúscula (ex: `WELLPET` tira todas as
+  apresentações). Vale com `cnpjAdsFornecedor` ou `codigoAdsDivisao`, e em todas as unidades
+  (inclusive positivação: cliente que só comprou produto excluído não conta).
 - Representante ou meta sem nenhum desses campos preenchidos simplesmente não são sincronizados
   (o `valorRealizado` deles fica em 0 — ele não é editável na mão).
 
