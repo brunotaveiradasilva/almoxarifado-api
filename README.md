@@ -186,6 +186,12 @@ testado com outros valores e todos deram `400`. Vai sempre igual em toda chamada
   `itens[].produto.descricao`, sem diferenciar maiúscula (ex: `WELLPET` tira todas as
   apresentações). Vale com `cnpjAdsFornecedor` ou `codigoAdsDivisao`, e em todas as unidades
   (inclusive positivação: cliente que só comprou produto excluído não conta).
+- E `produtosIncluidos`, no mesmo formato: se preenchido, **só** esses produtos contam (ex: uma meta
+  sazonal do Banni com os códigos das apresentações dele). Pode ser usado sozinho, sem CNPJ nem
+  divisão, ou junto com eles; os excluídos continuam saindo mesmo se também estiverem incluídos.
+  Um incluído pode ter fator: `4931*3` (ou `4931x3`, ou `FLACONETES*3` por nome) faz cada unidade
+  vendida contar 3 nas metas `UNIDADE` — pra kits que a ADS manda como quantidade 1 (ex: Banni
+  "C/ 3 FLACONETES"). Não muda R$, kg nem positivação.
 - Representante ou meta sem nenhum desses campos preenchidos simplesmente não são sincronizados
   (o `valorRealizado` deles fica em 0 — ele não é editável na mão).
 

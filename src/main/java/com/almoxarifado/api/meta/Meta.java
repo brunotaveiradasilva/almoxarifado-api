@@ -61,6 +61,13 @@ public class Meta {
      */
     private String produtosExcluidos;
 
+    /**
+     * Se preenchido, só esses produtos contam pra meta — mesmo formato de {@link #produtosExcluidos}
+     * (código na ADS ou trecho do nome). Pra metas de um produto específico, tipo as sazonais do
+     * Banni. Pode ser usado sozinho, sem CNPJ nem divisão.
+     */
+    private String produtosIncluidos;
+
     public Meta() {
     }
 
@@ -118,5 +125,13 @@ public class Meta {
 
     public void setProdutosExcluidos(String produtosExcluidos) {
         this.produtosExcluidos = produtosExcluidos;
+    }
+
+    public String getProdutosIncluidos() {
+        return produtosIncluidos;
+    }
+
+    public void setProdutosIncluidos(String produtosIncluidos) {
+        this.produtosIncluidos = produtosIncluidos;
     }
 }
