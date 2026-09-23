@@ -68,6 +68,12 @@ public class Meta {
      */
     private String produtosIncluidos;
 
+    /**
+     * Posição da meta nas listas da tela (0 primeiro), definida pelo admin em PUT /api/metas/ordem.
+     * Null em metas de antes disso — elas vão pro fim, por nome.
+     */
+    private Integer ordem;
+
     public Meta() {
     }
 
@@ -133,5 +139,13 @@ public class Meta {
 
     public void setProdutosIncluidos(String produtosIncluidos) {
         this.produtosIncluidos = produtosIncluidos;
+    }
+
+    public Integer getOrdem() {
+        return ordem;
+    }
+
+    public void setOrdem(Integer ordem) {
+        this.ordem = ordem;
     }
 }

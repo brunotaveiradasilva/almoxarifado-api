@@ -1,6 +1,11 @@
 package com.almoxarifado.api.meta;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.almoxarifado.api.common.RecursoNaoEncontradoException;
 import com.almoxarifado.api.fornecedor.Fornecedor;
@@ -23,6 +28,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/metas")
 public class MetaController {
 
+    private static final Comparator<Meta> NA_ORDEM = Comparator
+            .comparing(Meta::getOrdem, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(Meta::getNome, String.CASE_INSENSITIVE_ORDER);
+
     private final MetaRepository repository;
     private final FornecedorRepository fornecedores;
 
@@ -31,17 +40,38 @@ public class MetaController {
         this.fornecedores = fornecedores;
     }
 
+    /** Na ordem escolhida pelo admin; metas sem ordem (de antes dela existir) vão pro fim, por nome. */
     @GetMapping
     public List<Meta> listar() {
-        return repository.findAll();
+        return repository.findAll().stream().sorted(NA_ORDEM).toList();
     }
 
+    /** Meta nova entra no fim da lista. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Meta criar(@Valid @RequestBody MetaRequest corpo) {
         Meta meta = new Meta();
         preencher(meta, corpo);
+        meta.setOrdem(listar().size());
         return repository.save(meta);
+    }
+
+    /**
+     * Grava a ordem das metas: cada id recebe a sua posição na lista. As que não vierem na lista vão
+     * pro fim, mantendo a ordem que já tinham. Devolve todas as metas já na ordem nova.
+     */
+    @PutMapping("/ordem")
+    public List<Meta> ordenar(@Valid @RequestBody OrdenarMetasRequest corpo) {
+        Map<String, Meta> porId = listar().stream()
+                .collect(Collectors.toMap(Meta::getId, m -> m, (a, b) -> a, LinkedHashMap::new));
+        List<Meta> ordenadas = new ArrayList<>();
+        for (String id : corpo.ids()) {
+            Meta meta = porId.remove(id);
+            if (meta != null) ordenadas.add(meta);
+        }
+        ordenadas.addAll(porId.values());
+        for (int i = 0; i < ordenadas.size(); i++) ordenadas.get(i).setOrdem(i);
+        return repository.saveAll(ordenadas);
     }
 
     @PutMapping("/{id}")
