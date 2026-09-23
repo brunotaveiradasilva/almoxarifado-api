@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Um pedido faturado, como a ADS devolve em /historico-de-vendas. Só os campos que o cálculo de
- * realizado usa hoje — o resto (cliente, nota fiscal, tributos) a ADS manda mas ainda não é lido
+ * realizado usa hoje — o resto (nota fiscal, tributos) a ADS manda mas ainda não é lido
  * aqui.
  *
  * dataFaturamento vem sem fuso (ex: "2026-09-01T00:00:00", sem Z nem offset) — por isso é
@@ -19,11 +19,17 @@ record AdsVenda(
         long pedidoId,
         String operacao,
         AdsFornecedor fornecedor,
+        AdsCliente cliente,
         AdsRepresentante representante,
         List<AdsItemVenda> itens) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record AdsFornecedor(String cnpj) {
+    }
+
+    /** O id vem como número na ADS; aqui é só a chave pra contar clientes diferentes (metas CLIENTES). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record AdsCliente(String id) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

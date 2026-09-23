@@ -3,9 +3,11 @@ package com.almoxarifado.api.ads;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.almoxarifado.api.meta.Meta;
@@ -38,8 +40,9 @@ import org.springframework.stereotype.Service;
  * Cada um soma quantidade (UNIDADE), peso bruto (KG — confirmado batendo com o valor esperado
  * pelo usuário; peso líquido dava um número menor) ou valor do produto (REAL), considerando o
  * tipo de operação de cada pedido (ver {@link #sinal(AdsVenda)}): venda soma, devolução desconta,
- * bonificação não conta. Representante ou meta sem nenhum dos dois códigos cadastrado fica de
- * fora, sem erro.
+ * bonificação não conta. Metas CLIENTES (positivação) em vez de somar contam quantos clientes
+ * diferentes ficaram com saldo positivo em R$ nesses mesmos itens. Representante ou meta sem nenhum
+ * dos dois códigos cadastrado fica de fora, sem erro.
  *
  * Também grava um {@link TotalVendidoMensal}: a soma de TODO o histórico de vendas do
  * representante no mês (todos os fornecedores/divisões, não só o que está mapeado em alguma meta)
@@ -49,6 +52,9 @@ import org.springframework.stereotype.Service;
 public class AdsSincronizacaoService {
 
     private static final Logger log = LoggerFactory.getLogger(AdsSincronizacaoService.class);
+
+    /** Folga pra arredondamento: cliente com venda e devolução que se anulam fica com ~0, não positivado. */
+    private static final double SALDO_MINIMO_POSITIVADO = 0.01;
 
     private final MetaRepresentanteRepository metasRepresentante;
     private final TotalVendidoMensalRepository totais;
@@ -129,24 +135,46 @@ public class AdsSincronizacaoService {
     }
 
     private double somar(List<AdsVenda> vendas, Meta meta) {
-        if (temCodigo(meta.getCnpjAdsFornecedor())) {
-            return vendas.stream()
-                    .filter(v -> meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj()))
-                    .mapToDouble(v -> sinal(v) * v.itens().stream()
-                            .mapToDouble(item -> valor(item, meta.getUnidade()))
-                            .sum())
-                    .sum();
-        }
+        Predicate<AdsItemVenda> daMeta = itemDaMeta(meta);
+        List<AdsVenda> doFornecedor = temCodigo(meta.getCnpjAdsFornecedor())
+                ? vendas.stream().filter(v -> meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj())).toList()
+                : vendas;
 
-        Set<String> divisoes = Set.of(meta.getCodigoAdsDivisao().split(",")).stream()
-                .map(String::trim)
-                .collect(Collectors.toSet());
-        return vendas.stream()
+        if (meta.getUnidade() == UnidadeMeta.CLIENTES) {
+            return contarClientesPositivados(doFornecedor, daMeta);
+        }
+        return doFornecedor.stream()
                 .mapToDouble(v -> sinal(v) * v.itens().stream()
-                        .filter(item -> divisoes.contains(item.divisao().id()))
+                        .filter(daMeta)
                         .mapToDouble(item -> valor(item, meta.getUnidade()))
                         .sum())
                 .sum();
+    }
+
+    /** Com cnpjAdsFornecedor todo item do pedido conta (o filtro é no pedido); senão, só os das divisões da meta. */
+    private Predicate<AdsItemVenda> itemDaMeta(Meta meta) {
+        if (temCodigo(meta.getCnpjAdsFornecedor())) return item -> true;
+        Set<String> divisoes = Set.of(meta.getCodigoAdsDivisao().split(",")).stream()
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        return item -> divisoes.contains(item.divisao().id());
+    }
+
+    /**
+     * Positivação: quantos clientes diferentes ficaram com saldo positivo em R$ nos itens da meta
+     * (vendas menos devoluções, sem bonificação). Quem comprou e devolveu tudo não conta.
+     */
+    private double contarClientesPositivados(List<AdsVenda> vendas, Predicate<AdsItemVenda> daMeta) {
+        Map<String, Double> saldoPorCliente = new HashMap<>();
+        for (AdsVenda venda : vendas) {
+            if (venda.cliente() == null || venda.cliente().id() == null) continue;
+            double valor = sinal(venda) * venda.itens().stream()
+                    .filter(daMeta)
+                    .mapToDouble(item -> item.valores().valorProduto())
+                    .sum();
+            saldoPorCliente.merge(venda.cliente().id(), valor, Double::sum);
+        }
+        return saldoPorCliente.values().stream().filter(saldo -> saldo > SALDO_MINIMO_POSITIVADO).count();
     }
 
     /**
@@ -169,6 +197,7 @@ public class AdsSincronizacaoService {
             case REAL -> item.valores().valorProduto();
             case KG -> item.peso().bruto();
             case UNIDADE -> item.quantidade();
+            case CLIENTES -> throw new IllegalArgumentException("CLIENTES é contado por cliente, não somado por item");
         };
     }
 

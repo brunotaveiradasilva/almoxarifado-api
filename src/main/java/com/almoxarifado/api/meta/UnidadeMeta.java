@@ -4,5 +4,7 @@ package com.almoxarifado.api.meta;
 public enum UnidadeMeta {
     KG,
     UNIDADE,
-    REAL
+    REAL,
+    /** Positivação: quantos clientes diferentes compraram no mês. */
+    CLIENTES
 }
