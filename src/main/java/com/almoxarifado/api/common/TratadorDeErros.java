@@ -6,6 +6,8 @@ import java.util.Map;
 import com.almoxarifado.api.auth.CredenciaisInvalidasException;
 import com.almoxarifado.api.auth.UltimoUsuarioException;
 import com.almoxarifado.api.auth.UsuarioJaExisteException;
+import com.almoxarifado.api.metarepresentante.MesFechadoException;
+import com.almoxarifado.api.metarepresentante.MesInvalidoException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +47,16 @@ public class TratadorDeErros {
     @ExceptionHandler(RecursoEmUsoException.class)
     public ResponseEntity<Map<String, String>> recursoEmUso(RecursoEmUsoException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MesFechadoException.class)
+    public ResponseEntity<Map<String, String>> mesFechado(MesFechadoException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(MesInvalidoException.class)
+    public ResponseEntity<Map<String, String>> mesInvalido(MesInvalidoException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("erro", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

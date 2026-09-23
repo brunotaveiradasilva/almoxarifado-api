@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MetaRepresentanteRepository extends JpaRepository<MetaRepresentante, String> {
 
-    List<MetaRepresentante> findByRepresentanteId(String representanteId);
+    List<MetaRepresentante> findByMes(String mes);
 
-    Optional<MetaRepresentante> findByRepresentanteIdAndMetaId(String representanteId, String metaId);
+    Optional<MetaRepresentante> findByRepresentanteIdAndMetaIdAndMes(String representanteId, String metaId, String mes);
 }
