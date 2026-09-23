@@ -110,9 +110,10 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | POST   | `/api/representantes`            | Cria um representante (`{"nome","fornecedorIds","email","celular","codigoAds"}`, `codigoAds` é opcional — ver **Integração com a ADS** — exige ser ADMIN) |
 | PUT    | `/api/representantes/{id}`       | Atualiza um representante (exige ser ADMIN)        |
 | DELETE | `/api/representantes/{id}`       | Exclui um representante (exige ser ADMIN)          |
-| GET    | `/api/metas`                 | Lista as metas, com o fornecedor de cada uma (exige ser ADMIN) |
-| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade","codigoAdsDivisao","cnpjAdsFornecedor"}`, `unidade` é `KG`, `UNIDADE` ou `REAL`; os dois últimos são opcionais — ver **Integração com a ADS** — exige ser ADMIN) |
+| GET    | `/api/metas`                 | Lista as metas na ordem escolhida pelo admin (sem ordem vão pro fim, por nome), com o fornecedor de cada uma (exige ser ADMIN) |
+| POST   | `/api/metas`                 | Cria uma meta (`{"nome","fornecedorId","unidade","codigoAdsDivisao","cnpjAdsFornecedor","produtosIncluidos","produtosExcluidos"}`, `unidade` é `KG`, `UNIDADE`, `REAL` ou `CLIENTES`; os códigos ADS e produtos são opcionais; entra no fim da ordem — ver **Integração com a ADS** — exige ser ADMIN) |
 | PUT    | `/api/metas/{id}`            | Atualiza uma meta (exige ser ADMIN)           |
+| PUT    | `/api/metas/ordem`           | Grava a ordem das metas na tela (`{"ids":[...]}`, na ordem desejada; as que faltarem vão pro fim) e devolve todas já ordenadas (exige ser ADMIN) |
 | DELETE | `/api/metas/{id}`            | Exclui uma meta (exige ser ADMIN)             |
 | GET    | `/api/metas-representante?mes=2026-09` | Lista os valores de meta atribuídos aos representantes — de todos os meses, ou só do `mes` pedido (exige ser ADMIN) |
 | GET    | `/api/metas-representante/totais-vendidos` | Total vendido por representante e mês (card "Total vendido"), vindo da ADS (exige ser ADMIN) |
