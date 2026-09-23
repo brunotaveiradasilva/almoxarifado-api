@@ -34,8 +34,10 @@ public class Meta {
     private Fornecedor fornecedor;
 
     @NotNull(message = "Informe a unidade de medida")
+    // varchar em vez do enum(...) que o Hibernate cria sozinho no MySQL: senão cada unidade nova
+    // exigiria alterar a coluna (bancos antigos são convertidos por MigracaoUnidadeMetaVarchar).
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(20)")
     private UnidadeMeta unidade;
 
     /**
