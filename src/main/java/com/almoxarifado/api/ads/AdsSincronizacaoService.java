@@ -114,7 +114,12 @@ public class AdsSincronizacaoService {
             try {
                 List<AdsVenda> vendas = client.buscarTudo(inicio, fim, representante.getCodigoAds());
                 for (MetaRepresentante atribuicao : atribuicoes) {
-                    atribuicao.setValorRealizado(somar(vendas, atribuicao.getMeta()));
+                    Meta meta = atribuicao.getMeta();
+                    atribuicao.setValorRealizado(somar(vendas, meta, meta.getUnidade()));
+                    // Meta em kg também mostra quanto isso deu em R$, com os mesmos itens.
+                    atribuicao.setRealizadoEmReais(meta.getUnidade() == UnidadeMeta.KG
+                            ? somar(vendas, meta, UnidadeMeta.REAL)
+                            : null);
                     atualizadas.add(metasRepresentante.save(atribuicao));
                 }
 
@@ -141,20 +146,21 @@ public class AdsSincronizacaoService {
         return atualizadas;
     }
 
-    private double somar(List<AdsVenda> vendas, Meta meta) {
+    /** Soma os itens da meta na unidade pedida — normalmente a da meta; REAL pro "em R$" das metas em kg. */
+    private double somar(List<AdsVenda> vendas, Meta meta, UnidadeMeta unidade) {
         Predicate<AdsItemVenda> daMeta = itemDaMeta(meta);
         List<AdsVenda> doFornecedor = temCodigo(meta.getCnpjAdsFornecedor())
                 ? vendas.stream().filter(v -> meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj())).toList()
                 : vendas;
 
-        if (meta.getUnidade() == UnidadeMeta.CLIENTES) {
+        if (unidade == UnidadeMeta.CLIENTES) {
             return contarClientesPositivados(doFornecedor, daMeta);
         }
         List<FiltroProduto> incluidos = filtrosProduto(meta.getProdutosIncluidos());
         return doFornecedor.stream()
                 .mapToDouble(v -> sinal(v) * v.itens().stream()
                         .filter(daMeta)
-                        .mapToDouble(item -> valor(item, meta.getUnidade(), fator(item, incluidos)))
+                        .mapToDouble(item -> valor(item, unidade, fator(item, incluidos)))
                         .sum())
                 .sum();
     }

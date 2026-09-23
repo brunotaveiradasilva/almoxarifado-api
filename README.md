@@ -210,7 +210,7 @@ exemplo, já duplica o que outra meta mais específica desse mesmo fornecedor ta
 | Unidade da meta | Campo somado |
 |---|---|
 | `REAL` | `itens[].valores.valorProduto` |
-| `KG` | `itens[].peso.bruto` |
+| `KG` | `itens[].peso.bruto` (e também soma `valores.valorProduto` dos mesmos itens em `realizadoEmReais`, que a tela mostra embaixo do nome da meta) |
 | `UNIDADE` | `itens[].quantidade` |
 
 Cada pedido pesa diferente na soma dependendo do campo `operacao` que a ADS manda: pedidos
