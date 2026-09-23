@@ -22,8 +22,8 @@ import com.almoxarifado.api.representante.RepresentanteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Produtos excluídos da meta (ex: "Ourofino sem Wellpet") não contam no realizado. */
-class ProdutosExcluidosTests {
+/** Produtos incluídos (só eles contam, ex: meta do Banni) e excluídos (ex: "Ourofino sem Wellpet") da meta. */
+class FiltroDeProdutosTests {
 
     static final String OUROFINO = "57511234000148";
 
@@ -86,6 +86,64 @@ class ProdutosExcluidosTests {
         assertThat(realizado(meta)).isEqualTo(140);
     }
 
+    @Test
+    void incluidosSoContamEssesProdutos() {
+        Meta meta = meta(UnidadeMeta.REAL, "");
+        meta.setProdutosIncluidos("5085, 901");
+        assertThat(realizado(meta)).isEqualTo(65.98 + 40, offset(0.001));
+    }
+
+    @Test
+    void incluidosFuncionamSozinhosSemCnpjNemDivisao() {
+        Meta meta = new Meta();
+        meta.setUnidade(UnidadeMeta.UNIDADE);
+        meta.setProdutosIncluidos("wellpet");
+        assertThat(realizado(meta)).isEqualTo(2);
+    }
+
+    @Test
+    void excluidoGanhaDoIncluido() {
+        Meta meta = meta(UnidadeMeta.REAL, "5084");
+        meta.setProdutosIncluidos("WELLPET");
+        assertThat(realizado(meta)).isEqualTo(65.98, offset(0.001));
+    }
+
+    @Test
+    void fatorMultiplicaUnidadesDoKit() {
+        vendas(
+                venda("1", item("4727", "BANNI 3 0,90 ML", "031", 2, 98.51)),
+                venda("2", item("4931", "BANNI 3 0,30 ML C/ 3 FLACONETES", "031", 2, 204.78)),
+                venda("3", item("4932", "BANNI 3 0,90 ML C/ 3 FLACONETES", "031", 1, 112.84)),
+                venda("4", item("9999", "NEOPET CAES 0,67 ML", "031", 5, 100)));
+
+        Meta unidades = new Meta();
+        unidades.setUnidade(UnidadeMeta.UNIDADE);
+        unidades.setProdutosIncluidos("4727, 4931*3, 4932x3");
+        assertThat(realizado(unidades)).isEqualTo(2 + 2 * 3 + 3);
+
+        Meta porNome = new Meta();
+        porNome.setUnidade(UnidadeMeta.UNIDADE);
+        porNome.setProdutosIncluidos("BANNI, FLACONETES*3");
+        assertThat(realizado(porNome)).isEqualTo(11);
+    }
+
+    @Test
+    void fatorNaoMudaReaisNemPositivacao() {
+        vendas(
+                venda("1", item("4931", "BANNI 3 0,30 ML C/ 3 FLACONETES", "031", 2, 204.78)),
+                venda("2", item("4727", "BANNI 3 0,90 ML", "031", 1, 49.26)));
+
+        Meta reais = new Meta();
+        reais.setUnidade(UnidadeMeta.REAL);
+        reais.setProdutosIncluidos("4931*3, 4727");
+        assertThat(realizado(reais)).isEqualTo(204.78 + 49.26, offset(0.001));
+
+        Meta clientes = new Meta();
+        clientes.setUnidade(UnidadeMeta.CLIENTES);
+        clientes.setProdutosIncluidos("4931*3, 4727");
+        assertThat(realizado(clientes)).isEqualTo(2);
+    }
+
     private Meta meta(UnidadeMeta unidade, String excluidos) {
         Meta meta = new Meta();
         meta.setUnidade(unidade);
@@ -113,7 +171,11 @@ class ProdutosExcluidosTests {
     }
 
     private static AdsItemVenda item(String produtoId, String descricao, String divisao, double valor) {
-        return new AdsItemVenda(new AdsItemVenda.AdsProduto(produtoId, descricao), new AdsItemVenda.AdsDivisao(divisao, null), 1,
-                new AdsItemVenda.AdsValoresItem(valor), new AdsItemVenda.AdsPeso(1, 1));
+        return item(produtoId, descricao, divisao, 1, valor);
+    }
+
+    private static AdsItemVenda item(String produtoId, String descricao, String divisao, double quantidade, double valor) {
+        return new AdsItemVenda(new AdsItemVenda.AdsProduto(produtoId, descricao), new AdsItemVenda.AdsDivisao(divisao, null),
+                quantidade, new AdsItemVenda.AdsValoresItem(valor), new AdsItemVenda.AdsPeso(1, 1));
     }
 }

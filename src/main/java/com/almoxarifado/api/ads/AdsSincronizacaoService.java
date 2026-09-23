@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.almoxarifado.api.meta.Meta;
@@ -43,8 +45,11 @@ import org.springframework.stereotype.Service;
  * tipo de operação de cada pedido (ver {@link #sinal(AdsVenda)}): venda soma, devolução desconta,
  * bonificação não conta. Metas CLIENTES (positivação) em vez de somar contam quantos clientes
  * diferentes ficaram com saldo positivo em R$ nesses mesmos itens. Representante ou meta sem nenhum
- * dos dois códigos cadastrado fica de fora, sem erro. Nos dois jeitos, itens que batem com
- * {@link Meta#getProdutosExcluidos()} (código do produto ou trecho do nome) não contam.
+ * dos dois códigos (nem produtos incluídos) cadastrado fica de fora, sem erro. Com
+ * {@link Meta#getProdutosIncluidos()} só esses produtos contam (sozinho ou junto com CNPJ/divisão), e
+ * itens que batem com {@link Meta#getProdutosExcluidos()} nunca contam — os dois aceitam código do
+ * produto ou trecho do nome. Um incluído com fator ("4931*3") faz cada unidade vendida contar N nas
+ * metas UNIDADE (kits que a ADS manda como quantidade 1).
  *
  * Também grava um {@link TotalVendidoMensal}: a soma de TODO o histórico de vendas do
  * representante no mês (todos os fornecedores/divisões, não só o que está mapeado em alguma meta)
@@ -145,39 +150,76 @@ public class AdsSincronizacaoService {
         if (meta.getUnidade() == UnidadeMeta.CLIENTES) {
             return contarClientesPositivados(doFornecedor, daMeta);
         }
+        List<FiltroProduto> incluidos = filtrosProduto(meta.getProdutosIncluidos());
         return doFornecedor.stream()
                 .mapToDouble(v -> sinal(v) * v.itens().stream()
                         .filter(daMeta)
-                        .mapToDouble(item -> valor(item, meta.getUnidade()))
+                        .mapToDouble(item -> valor(item, meta.getUnidade(), fator(item, incluidos)))
                         .sum())
                 .sum();
     }
 
     /**
-     * Com cnpjAdsFornecedor todo item do pedido conta (o filtro é no pedido); senão, só os das divisões da meta.
-     * Nos dois casos, os produtos excluídos da meta ficam de fora.
+     * Quantas unidades cada unidade vendida vale na meta: o maior fator entre os produtos incluídos que
+     * batem com o item (ex: "4931*3" — kit com 3 flaconetes que a ADS manda como quantidade 1). Sem fator, 1.
      */
-    private Predicate<AdsItemVenda> itemDaMeta(Meta meta) {
-        return itemIncluido(meta).and(itemExcluido(meta).negate());
+    private int fator(AdsItemVenda item, List<FiltroProduto> incluidos) {
+        return incluidos.stream().filter(f -> f.bate(item)).mapToInt(FiltroProduto::fator).max().orElse(1);
     }
 
-    private Predicate<AdsItemVenda> itemIncluido(Meta meta) {
-        if (temCodigo(meta.getCnpjAdsFornecedor())) return item -> true;
+    /**
+     * Com cnpjAdsFornecedor todo item do pedido conta (o filtro é no pedido); com codigoAdsDivisao, só os
+     * das divisões da meta. Em cima disso, se a meta tem produtos incluídos só eles contam, e os produtos
+     * excluídos sempre ficam de fora.
+     */
+    private Predicate<AdsItemVenda> itemDaMeta(Meta meta) {
+        Predicate<AdsItemVenda> daMeta = itemDaDivisao(meta);
+        if (temCodigo(meta.getProdutosIncluidos())) daMeta = daMeta.and(produtoEm(meta.getProdutosIncluidos()));
+        if (temCodigo(meta.getProdutosExcluidos())) daMeta = daMeta.and(produtoEm(meta.getProdutosExcluidos()).negate());
+        return daMeta;
+    }
+
+    /** Sem CNPJ nem divisão (meta só por produtos incluídos), todo item passa por aqui. */
+    private Predicate<AdsItemVenda> itemDaDivisao(Meta meta) {
+        if (temCodigo(meta.getCnpjAdsFornecedor()) || !temCodigo(meta.getCodigoAdsDivisao())) return item -> true;
         Set<String> divisoes = separarPorVirgula(meta.getCodigoAdsDivisao());
         return item -> divisoes.contains(item.divisao().id());
     }
 
-    /** Só dígitos é o código do produto na ADS (tem que ser igual); texto é um trecho do nome, sem diferenciar maiúscula. */
-    private Predicate<AdsItemVenda> itemExcluido(Meta meta) {
-        if (!temCodigo(meta.getProdutosExcluidos())) return item -> false;
-        Set<String> excluidos = separarPorVirgula(meta.getProdutosExcluidos().toUpperCase());
-        return item -> {
+    /** Item cujo produto bate com algum da lista (separada por vírgula) — ver {@link FiltroProduto}. */
+    private Predicate<AdsItemVenda> produtoEm(String lista) {
+        List<FiltroProduto> filtros = filtrosProduto(lista);
+        return item -> filtros.stream().anyMatch(f -> f.bate(item));
+    }
+
+    private List<FiltroProduto> filtrosProduto(String lista) {
+        if (!temCodigo(lista)) return List.of();
+        return separarPorVirgula(lista.toUpperCase()).stream().map(FiltroProduto::de).toList();
+    }
+
+    /**
+     * Um produto da lista de incluídos/excluídos. Só dígitos é o código do produto na ADS (tem que ser
+     * igual); texto é um trecho do nome, sem diferenciar maiúscula. Pode terminar com "*N" (ou "xN"
+     * depois de um código, ex: "4931x3"): cada unidade vendida conta N nas metas UNIDADE.
+     */
+    private record FiltroProduto(String termo, int fator) {
+
+        private static final Pattern COM_FATOR = Pattern.compile("^(.+?)\\s*\\*\\s*(\\d+)$");
+        private static final Pattern CODIGO_X_FATOR = Pattern.compile("^(\\d+)\\s*X\\s*(\\d+)$");
+
+        static FiltroProduto de(String texto) {
+            Matcher m = COM_FATOR.matcher(texto);
+            if (!m.matches()) m = CODIGO_X_FATOR.matcher(texto);
+            if (m.matches()) return new FiltroProduto(m.group(1).trim(), Integer.parseInt(m.group(2)));
+            return new FiltroProduto(texto, 1);
+        }
+
+        boolean bate(AdsItemVenda item) {
             if (item.produto() == null) return false;
+            if (termo.chars().allMatch(Character::isDigit)) return termo.equals(item.produto().id());
             String descricao = item.produto().descricao() == null ? "" : item.produto().descricao().toUpperCase();
-            return excluidos.stream().anyMatch(ex -> ex.chars().allMatch(Character::isDigit)
-                    ? ex.equals(item.produto().id())
-                    : descricao.contains(ex));
-        };
+            return descricao.contains(termo);
+        }
     }
 
     private Set<String> separarPorVirgula(String texto) {
@@ -219,17 +261,19 @@ public class AdsSincronizacaoService {
         return 0;
     }
 
-    private double valor(AdsItemVenda item, UnidadeMeta unidade) {
+    /** O fator (ver {@link #fator}) só muda UNIDADE: R$ e peso já vêm certos pro kit inteiro. */
+    private double valor(AdsItemVenda item, UnidadeMeta unidade, int fator) {
         return switch (unidade) {
             case REAL -> item.valores().valorProduto();
             case KG -> item.peso().bruto();
-            case UNIDADE -> item.quantidade();
+            case UNIDADE -> item.quantidade() * fator;
             case CLIENTES -> throw new IllegalArgumentException("CLIENTES é contado por cliente, não somado por item");
         };
     }
 
     private boolean metaTemCodigo(Meta meta) {
-        return temCodigo(meta.getCnpjAdsFornecedor()) || temCodigo(meta.getCodigoAdsDivisao());
+        return temCodigo(meta.getCnpjAdsFornecedor()) || temCodigo(meta.getCodigoAdsDivisao())
+                || temCodigo(meta.getProdutosIncluidos());
     }
 
     private boolean temCodigo(String codigo) {

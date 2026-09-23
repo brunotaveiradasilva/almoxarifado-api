@@ -64,6 +64,7 @@ public class MetaController {
         meta.setCodigoAdsDivisao(corpo.codigoAdsDivisao());
         meta.setCnpjAdsFornecedor(corpo.cnpjAdsFornecedor());
         meta.setProdutosExcluidos(corpo.produtosExcluidos());
+        meta.setProdutosIncluidos(corpo.produtosIncluidos());
         meta.setFornecedor(buscarFornecedor(corpo.fornecedorId()));
     }
 
