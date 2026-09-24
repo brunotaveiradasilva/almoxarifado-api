@@ -3,9 +3,11 @@ package com.almoxarifado.api.common;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.almoxarifado.api.ads.AdsApiException;
 import com.almoxarifado.api.auth.CredenciaisInvalidasException;
 import com.almoxarifado.api.auth.UltimoUsuarioException;
 import com.almoxarifado.api.auth.UsuarioJaExisteException;
+import com.almoxarifado.api.dados.ConsultaInvalidaException;
 import com.almoxarifado.api.metarepresentante.MesFechadoException;
 import com.almoxarifado.api.metarepresentante.MesInvalidoException;
 
@@ -57,6 +59,18 @@ public class TratadorDeErros {
     @ExceptionHandler(MesInvalidoException.class)
     public ResponseEntity<Map<String, String>> mesInvalido(MesInvalidoException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ConsultaInvalidaException.class)
+    public ResponseEntity<Map<String, String>> consultaInvalida(ConsultaInvalidaException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("erro", ex.getMessage()));
+    }
+
+    /** ADS fora do ar ou recusando: o problema não é de quem chamou, é do serviço de trás. */
+    @ExceptionHandler(AdsApiException.class)
+    public ResponseEntity<Map<String, String>> adsFalhou(AdsApiException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("erro", "Não deu pra buscar as vendas na ADS agora. Tente de novo em instantes."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
