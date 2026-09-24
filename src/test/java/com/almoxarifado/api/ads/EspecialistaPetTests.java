@@ -9,8 +9,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import com.almoxarifado.api.especialistapet.ClienteEspecialistaPet;
 import com.almoxarifado.api.especialistapet.ClienteEspecialistaPetRepository;
@@ -73,7 +75,7 @@ class EspecialistaPetTests {
         ClienteEspecialistaPet semVenda = cliente("2");
         semVenda.setRealizadoTotal(50); // de uma sincronização anterior
         when(clientes.findByMes(Mes.atual().toString())).thenReturn(List.of(semVenda));
-        when(client.buscarTudo(any(), any(), isNull()))
+        when(client.buscarTudo(any(), any(), isNull(), any()))
                 .thenReturn(List.of(venda("VENDA DE MERCADORIA", PREMIER, "1", item("079", 1, 15, 100))));
 
         servico.sincronizarMes(Mes.atual());
@@ -85,7 +87,27 @@ class EspecialistaPetTests {
     void mesSemPlanilhaNaoChamaAAds() {
         when(clientes.findByMes(any())).thenReturn(List.of());
         servico.sincronizarMes(Mes.atual());
-        verify(client, never()).buscarTudo(any(), any(), any());
+        verify(client, never()).buscarTudo(any(), any(), any(), any());
+    }
+
+    @Test
+    void progressoAcompanhaAsPaginasESomeNoFim() {
+        when(clientes.findByMes(Mes.atual().toString())).thenReturn(List.of(cliente("1")));
+        List<Integer> vistos = new ArrayList<>();
+        when(client.buscarTudo(any(), any(), isNull(), any())).thenAnswer(inv -> {
+            BiConsumer<Integer, Integer> aoLerPagina = inv.getArgument(3);
+            aoLerPagina.accept(100, 400);
+            vistos.add(servico.progresso(Mes.atual()).getAsInt());
+            aoLerPagina.accept(400, 400);
+            vistos.add(servico.progresso(Mes.atual()).getAsInt());
+            return List.of();
+        });
+
+        servico.sincronizarMes(Mes.atual());
+
+        // Até 99% enquanto busca; terminado, o mês sai da lista de sincronizações em andamento.
+        assertThat(vistos).containsExactly(25, 99);
+        assertThat(servico.progresso(Mes.atual())).isEmpty();
     }
 
     private static ClienteEspecialistaPet cliente(String codigo) {
