@@ -15,8 +15,13 @@ record AdsItemVenda(AdsProduto produto, AdsDivisao divisao, double quantidade, A
     record AdsDivisao(String id, String descricao) {
     }
 
+    /** precoTabela é o preço unitário de tabela, antes de desconto — a campanha Especialista Pet conta em cima dele. */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record AdsValoresItem(double valorProduto) {
+    record AdsValoresItem(double valorProduto, double precoTabela) {
+
+        AdsValoresItem(double valorProduto) {
+            this(valorProduto, 0);
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
