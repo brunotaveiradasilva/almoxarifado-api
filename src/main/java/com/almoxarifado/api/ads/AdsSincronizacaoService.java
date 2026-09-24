@@ -259,7 +259,7 @@ public class AdsSincronizacaoService {
      * qualquer operação não reconhecida ficam de fora (soma zero), pra nunca contar algo errado
      * por engano.
      */
-    private int sinal(AdsVenda venda) {
+    static int sinal(AdsVenda venda) {
         String operacao = venda.operacao() == null ? "" : venda.operacao().toUpperCase();
         if (operacao.contains("BONIFICA")) return 0;
         if (operacao.contains("DEV")) return -1;
