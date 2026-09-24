@@ -13,7 +13,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.almoxarifado.api.fornecedor.Fornecedor;
 import com.almoxarifado.api.meta.Meta;
+import com.almoxarifado.api.meta.MetaRepository;
 import com.almoxarifado.api.meta.UnidadeMeta;
 import com.almoxarifado.api.metarepresentante.MetaRepresentante;
 import com.almoxarifado.api.metarepresentante.MetaRepresentanteRepository;
@@ -66,16 +68,19 @@ public class AdsSincronizacaoService {
     private final MetaRepresentanteRepository metasRepresentante;
     private final TotalVendidoMensalRepository totais;
     private final RepresentanteRepository representantes;
+    private final MetaRepository metas;
     private final AdsHistoricoVendasClient client;
 
     public AdsSincronizacaoService(
             MetaRepresentanteRepository metasRepresentante,
             TotalVendidoMensalRepository totais,
             RepresentanteRepository representantes,
+            MetaRepository metas,
             AdsHistoricoVendasClient client) {
         this.metasRepresentante = metasRepresentante;
         this.totais = totais;
         this.representantes = representantes;
+        this.metas = metas;
         this.client = client;
     }
 
@@ -96,6 +101,10 @@ public class AdsSincronizacaoService {
      * Recalcula e salva o valorRealizado das atribuições do mês cujo representante e meta têm código
      * ADS cadastrado, com as vendas do dia 1 ao último dia do mês (ou até hoje, se for o mês atual).
      * Mês futuro não tem venda: não faz nada.
+     *
+     * <p>Roda pra todo representante com código ADS, mesmo sem nenhuma meta no mês: as metas dos
+     * fornecedores dele que ainda não têm valor ganham uma atribuição com valorMeta 0 ("sem meta"),
+     * só pra guardar o realizado — assim a tela mostra quanto ele vendeu mesmo sem meta definida.
      */
     public List<MetaRepresentante> sincronizarMes(YearMonth mes) {
         LocalDate hoje = LocalDate.now(Mes.FUSO);
@@ -106,11 +115,28 @@ public class AdsSincronizacaoService {
 
         Map<String, List<MetaRepresentante>> porRepresentanteId = metasRepresentante.findByMes(mes.toString()).stream()
                 .filter(mv -> temCodigo(mv.getRepresentante().getCodigoAds()) && metaTemCodigo(mv.getMeta()))
-                .collect(Collectors.groupingBy(mv -> mv.getRepresentante().getId()));
+                .collect(Collectors.groupingBy(mv -> mv.getRepresentante().getId(), HashMap::new, Collectors.toList()));
+
+        Map<String, Representante> aSincronizar = new HashMap<>();
+        porRepresentanteId.values().forEach(lista -> aSincronizar.put(lista.get(0).getRepresentante().getId(), lista.get(0).getRepresentante()));
+        representantes.findAll().stream()
+                .filter(r -> temCodigo(r.getCodigoAds()))
+                .forEach(r -> aSincronizar.putIfAbsent(r.getId(), r));
+        List<Meta> todasAsMetas = metas.findAll().stream().filter(this::metaTemCodigo).toList();
 
         List<MetaRepresentante> atualizadas = new ArrayList<>();
-        porRepresentanteId.forEach((representanteId, atribuicoes) -> {
-            Representante representante = atribuicoes.get(0).getRepresentante();
+        aSincronizar.forEach((representanteId, representante) -> {
+            List<MetaRepresentante> atribuicoes = new ArrayList<>(porRepresentanteId.getOrDefault(representanteId, List.of()));
+            Set<String> fornecedorIds = representante.getFornecedores().stream().map(Fornecedor::getId).collect(Collectors.toSet());
+            Set<String> jaTem = atribuicoes.stream().map(mv -> mv.getMeta().getId()).collect(Collectors.toSet());
+            for (Meta meta : todasAsMetas) {
+                if (!fornecedorIds.contains(meta.getFornecedor().getId()) || jaTem.contains(meta.getId())) continue;
+                MetaRepresentante semMeta = new MetaRepresentante();
+                semMeta.setRepresentante(representante);
+                semMeta.setMeta(meta);
+                semMeta.setMes(mes.toString());
+                atribuicoes.add(semMeta);
+            }
             try {
                 List<AdsVenda> vendas = client.buscarTudo(inicio, fim, representante.getCodigoAds());
                 for (MetaRepresentante atribuicao : atribuicoes) {
