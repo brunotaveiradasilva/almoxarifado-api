@@ -23,7 +23,8 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li>todos os SKUs: peso bruto de tudo da PremieR;</li>
  *   <li>produto foco: peso bruto só das divisões NATTU (pacoteira e sacaria);</li>
- *   <li>em R$: todos os SKUs a preço de tabela (quantidade × precoTabela), que é a base do desconto.</li>
+ *   <li>em R$: todos os SKUs a preço de tabela (quantidade × precoTabela), que é a base do desconto,
+ *   e à parte só o produto foco em R$ — o desconto do foco e o do resto são calculados separados.</li>
  * </ul>
  *
  * Esses critérios foram conferidos batendo com a aba "Resultado" da planilha de setembro/2026 da
@@ -81,6 +82,7 @@ public class AdsEspecialistaPetService {
             cliente.setRealizadoFoco(r.foco);
             cliente.setRealizadoTotal(r.total);
             cliente.setRealizadoReais(r.reais);
+            cliente.setRealizadoFocoReais(r.focoReais);
         }
         clientes.saveAll(participantes);
     }
@@ -96,9 +98,11 @@ public class AdsEspecialistaPetService {
             Realizado r = porCliente.computeIfAbsent(venda.cliente().id(), id -> new Realizado());
             for (AdsItemVenda item : venda.itens()) {
                 r.total += sinal * item.peso().bruto();
-                r.reais += sinal * item.quantidade() * item.valores().precoTabela();
+                double reais = sinal * item.quantidade() * item.valores().precoTabela();
+                r.reais += reais;
                 if (item.divisao() != null && DIVISOES_FOCO.contains(item.divisao().id())) {
                     r.foco += sinal * item.peso().bruto();
+                    r.focoReais += reais;
                 }
             }
         }
@@ -109,5 +113,6 @@ public class AdsEspecialistaPetService {
         double foco;
         double total;
         double reais;
+        double focoReais;
     }
 }
