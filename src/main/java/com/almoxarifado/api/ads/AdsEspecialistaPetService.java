@@ -22,7 +22,8 @@ import org.springframework.stereotype.Service;
  *
  * <ul>
  *   <li>todos os SKUs: peso bruto de tudo da PremieR;</li>
- *   <li>produto foco: peso bruto só das divisões NATTU (pacoteira e sacaria);</li>
+ *   <li>produto foco: peso bruto só das divisões NATTU (pacoteira e sacaria), e à parte quanto disso
+ *   é da linha NATTU WILD (produto com "WILD" no nome);</li>
  *   <li>em R$: todos os SKUs a preço de tabela (quantidade × precoTabela), que é a base do desconto,
  *   e à parte só o produto foco em R$ — o desconto do foco e o do resto são calculados separados.</li>
  * </ul>
@@ -83,6 +84,7 @@ public class AdsEspecialistaPetService {
             cliente.setRealizadoTotal(r.total);
             cliente.setRealizadoReais(r.reais);
             cliente.setRealizadoFocoReais(r.focoReais);
+            cliente.setRealizadoFocoWild(r.focoWild);
         }
         clientes.saveAll(participantes);
     }
@@ -103,6 +105,7 @@ public class AdsEspecialistaPetService {
                 if (item.divisao() != null && DIVISOES_FOCO.contains(item.divisao().id())) {
                     r.foco += sinal * item.peso().bruto();
                     r.focoReais += reais;
+                    if (ehWild(item)) r.focoWild += sinal * item.peso().bruto();
                 }
             }
         }
@@ -114,5 +117,12 @@ public class AdsEspecialistaPetService {
         double total;
         double reais;
         double focoReais;
+        double focoWild;
+    }
+
+    /** Linha NATTU WILD (ex.: "NATTU WILD CAES AD ABOBORA 12 KG"), dentro das divisões do foco. */
+    private static boolean ehWild(AdsItemVenda item) {
+        return item.produto() != null && item.produto().descricao() != null
+                && item.produto().descricao().toUpperCase().contains("WILD");
     }
 }
