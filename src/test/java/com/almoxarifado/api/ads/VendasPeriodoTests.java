@@ -12,11 +12,14 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import com.almoxarifado.api.dados.ConsultaInvalidaException;
 import com.almoxarifado.api.dados.VendasPeriodo;
 import com.almoxarifado.api.dados.VendasPeriodo.VendasRepresentante;
 import com.almoxarifado.api.fornecedor.Fornecedor;
+import com.almoxarifado.api.fornecedor.FornecedorRepository;
 import com.almoxarifado.api.meta.Meta;
 import com.almoxarifado.api.meta.MetaRepository;
 import com.almoxarifado.api.representante.Representante;
@@ -36,7 +39,8 @@ class VendasPeriodoTests {
     AdsHistoricoVendasClient client = mock(AdsHistoricoVendasClient.class);
     RepresentanteRepository representantes = mock(RepresentanteRepository.class);
     MetaRepository metas = mock(MetaRepository.class);
-    AdsVendasPeriodoService servico = new AdsVendasPeriodoService(client, representantes, metas);
+    FornecedorRepository fornecedores = mock(FornecedorRepository.class);
+    AdsVendasPeriodoService servico = new AdsVendasPeriodoService(client, representantes, metas, fornecedores);
 
     Fornecedor premier;
 
@@ -60,7 +64,7 @@ class VendasPeriodoTests {
                 venda("BONIFICACAO", PREMIER, "2", item("100", 500, 50)));
         vendas("007", venda("VENDA DE MERCADORIA", OUTRO, "1", item("200", 40, 4)));
 
-        VendasPeriodo periodo = servico.buscar(INICIO, FIM, null, null);
+        VendasPeriodo periodo = servico.buscar(INICIO, FIM, Set.of(), Set.of());
 
         assertThat(periodo.representantes()).extracting(VendasRepresentante::representanteId).containsExactly("rep-1", "rep-2");
         VendasRepresentante marye = linha(periodo, "rep-1");
@@ -79,7 +83,7 @@ class VendasPeriodoTests {
     void comRepresentanteEscolhidoSoBuscaEle() {
         vendas("007", venda("VENDA DE MERCADORIA", OUTRO, "1", item("200", 40, 4)));
 
-        VendasPeriodo periodo = servico.buscar(INICIO, FIM, "rep-2", null);
+        VendasPeriodo periodo = servico.buscar(INICIO, FIM, Set.of("rep-2"), Set.of());
 
         assertThat(periodo.representantes()).extracting(VendasRepresentante::nome).containsExactly("João");
         assertThat(periodo.total().valor()).isEqualTo(40);
@@ -88,7 +92,7 @@ class VendasPeriodoTests {
 
     @Test
     void representanteSemCodigoAdsDaErroClaro() {
-        assertThatThrownBy(() -> servico.buscar(INICIO, FIM, "rep-3", null)).isInstanceOf(ConsultaInvalidaException.class);
+        assertThatThrownBy(() -> servico.buscar(INICIO, FIM, Set.of("rep-3"), Set.of())).isInstanceOf(ConsultaInvalidaException.class);
     }
 
     @Test
@@ -98,24 +102,58 @@ class VendasPeriodoTests {
                 venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 100, 10)),
                 venda("VENDA DE MERCADORIA", OUTRO, "2", item("300", 20, 2), item("200", 999, 99)));
 
-        VendasPeriodo periodo = servico.buscar(INICIO, FIM, null, "forn-1");
+        VendasPeriodo periodo = servico.buscar(INICIO, FIM, Set.of(), Set.of("forn-1"));
 
         assertThat(linha(periodo, "rep-1").valores().valor()).isEqualTo(120);
         assertThat(linha(periodo, "rep-1").valores().clientes()).isEqualTo(2);
     }
 
     @Test
-    void fornecedorSemCodigoAdsNasMetasDaErroClaro() {
-        metas(metaDe(premier, null, null));
+    void variosRepresentantesSoBuscaOsEscolhidos() {
+        vendas("003", venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 100, 10)));
+        vendas("007", venda("VENDA DE MERCADORIA", OUTRO, "2", item("200", 40, 4)));
 
-        assertThatThrownBy(() -> servico.buscar(INICIO, FIM, null, "forn-1")).isInstanceOf(ConsultaInvalidaException.class);
+        VendasPeriodo periodo = servico.buscar(INICIO, FIM, Set.of("rep-1", "rep-2", "rep-3"), Set.of());
+
+        // rep-3 não tem código ADS: fica de fora sem derrubar a consulta, os outros dois vêm.
+        assertThat(periodo.representantes()).extracting(VendasRepresentante::representanteId).containsExactly("rep-1", "rep-2");
+        assertThat(periodo.total().valor()).isEqualTo(140);
+    }
+
+    @Test
+    void variosFornecedoresSomamSemContarItemDuasVezes() {
+        Fornecedor outro = new Fornecedor();
+        outro.setId("forn-2");
+        outro.setNome("Outro");
+        // A divisão 300 está nos dois fornecedores: o item dela conta uma vez só.
+        metas(metaDe(premier, PREMIER, null), metaDe(outro, null, "300"), metaDe(premier, null, "300"));
+        vendas("003",
+                venda("VENDA DE MERCADORIA", PREMIER, "1", item("100", 100, 10)),
+                venda("VENDA DE MERCADORIA", OUTRO, "2", item("300", 20, 2), item("200", 999, 99)));
+
+        VendasPeriodo periodo = servico.buscar(INICIO, FIM, Set.of(), Set.of("forn-1", "forn-2"));
+
+        assertThat(linha(periodo, "rep-1").valores().valor()).isEqualTo(120);
+    }
+
+    @Test
+    void fornecedorSemCodigoAdsNasMetasDaErroComONome() {
+        Fornecedor semCodigo = new Fornecedor();
+        semCodigo.setId("forn-2");
+        semCodigo.setNome("Vetnil");
+        metas(metaDe(premier, PREMIER, null), metaDe(semCodigo, null, null));
+        when(fornecedores.findById("forn-2")).thenReturn(Optional.of(semCodigo));
+
+        assertThatThrownBy(() -> servico.buscar(INICIO, FIM, Set.of(), Set.of("forn-1", "forn-2")))
+                .isInstanceOf(ConsultaInvalidaException.class)
+                .hasMessageContaining("Vetnil");
     }
 
     @Test
     void falhaDaAdsEmUmRepresentanteDerrubaAConsulta() {
         when(client.buscarTudo(any(), any(), eq("007"))).thenThrow(new AdsApiException("fora do ar"));
 
-        assertThatThrownBy(() -> servico.buscar(INICIO, FIM, null, null)).isInstanceOf(AdsApiException.class);
+        assertThatThrownBy(() -> servico.buscar(INICIO, FIM, Set.of(), Set.of())).isInstanceOf(AdsApiException.class);
     }
 
     private VendasRepresentante linha(VendasPeriodo periodo, String representanteId) {

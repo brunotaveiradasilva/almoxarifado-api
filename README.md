@@ -122,7 +122,7 @@ Todos sob o prefixo `/api`. Corpos e respostas em JSON, no mesmo formato usado p
 | POST   | `/api/metas-representante`        | Atribui um valor de meta a um representante (`{"representanteId","metaId","mes","valorMeta"}` — `mes` vazio vale o mês atual; exige ser ADMIN) |
 | PUT    | `/api/metas-representante/{id}`   | Atualiza um valor de meta; o `valorRealizado` não muda por aqui (exige ser ADMIN) |
 | DELETE | `/api/metas-representante/{id}`   | Exclui um valor de meta (exige ser ADMIN)     |
-| GET    | `/api/dados/vendas?inicio=2025-09-01&fim=2025-09-30&representanteId=&fornecedorId=` | Vendas de um período (até 1 ano) direto da ADS, por representante do cadastro e no total: R$, kg e clientes positivados. `representanteId` e `fornecedorId` opcionais — ver **Aba Dados** (exige ser ADMIN) |
+| GET    | `/api/dados/vendas?inicio=2025-09-01&fim=2025-09-30&representanteId=&fornecedorId=` | Vendas de um período (até 1 ano) direto da ADS, por representante do cadastro e no total: R$, kg e clientes positivados. `representanteId` e `fornecedorId` opcionais e aceitam vários (repetindo o parâmetro ou separados por vírgula) — ver **Aba Dados** (exige ser ADMIN) |
 | GET    | `/actuator/health`           | Health check (usado pelo Railway/Render), sem login |
 
 ## Variáveis de ambiente
@@ -235,14 +235,15 @@ fora do recálculo daquela vez (loga um aviso) — os outros continuam normalmen
 período pedido na hora (`AdsVendasPeriodoService`). Só entram os representantes do cadastro com
 `codigoAds` preenchido — cada um buscado com `repr_id` (igual à sincronização das metas), 4 ao
 mesmo tempo —, então cada linha já é o representante do cadastro. Com `representanteId`, busca só
-ele. Representante sem `codigoAds` fica de fora (escolhido no filtro, dá `400`). Por isso dá pra
+eles (vários: repita o parâmetro ou separe por vírgula). Representante sem `codigoAds` fica de fora (se nenhum escolhido tiver, dá `400`). Por isso dá pra
 comparar com qualquer mês do passado, mesmo sem meta cadastrada nele. A regra de operação é a mesma
 das metas (venda soma, devolução desconta, bonificação fica de fora). Se a ADS falhar em qualquer
 representante, a consulta toda dá `502` — número pela metade enganaria a comparação.
 
 Com `fornecedorId`, só contam os pedidos dos `cnpjAdsFornecedor` e os itens das `codigoAdsDivisao`
-das metas desse fornecedor (produtos incluídos/excluídos não entram — é o fornecedor inteiro).
-Fornecedor sem nenhum desses códigos nas metas dá `400`.
+das metas desse fornecedor (produtos incluídos/excluídos não entram — é o fornecedor inteiro). Com
+vários, junta os códigos de todos — item que bate com mais de um conta uma vez só. Fornecedor
+escolhido sem nenhum desses códigos nas metas dá `400`, com o nome dele na mensagem.
 
 Período que terminou há mais de 5 dias fica guardado em memória por 6 horas, por representante
 (até 160 combinações de representante e período), porque buscar um ano inteiro na ADS demora.

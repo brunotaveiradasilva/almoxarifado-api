@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,8 @@ import com.almoxarifado.api.dados.ConsultaInvalidaException;
 import com.almoxarifado.api.dados.VendasPeriodo;
 import com.almoxarifado.api.dados.VendasPeriodo.Valores;
 import com.almoxarifado.api.dados.VendasPeriodo.VendasRepresentante;
+import com.almoxarifado.api.fornecedor.Fornecedor;
+import com.almoxarifado.api.fornecedor.FornecedorRepository;
 import com.almoxarifado.api.meta.Meta;
 import com.almoxarifado.api.meta.MetaRepository;
 import com.almoxarifado.api.metarepresentante.Mes;
@@ -36,8 +39,8 @@ import org.springframework.stereotype.Service;
  * Só olha os representantes do cadastro que têm {@link Representante#getCodigoAds()}: busca o
  * histórico de cada um filtrado por {@code repr_id} (o mesmo jeito da sincronização das metas),
  * alguns ao mesmo tempo. Assim cada linha já é o representante do cadastro, e não precisa varrer a
- * ADS inteira. Com fornecedor escolhido, só contam os itens que as metas desse fornecedor
- * reconhecem: pedidos do CNPJ ou itens das divisões cadastradas nas metas dele (produtos
+ * ADS inteira. Com fornecedores escolhidos, só contam os itens que as metas deles reconhecem:
+ * pedidos dos CNPJs ou itens das divisões cadastradas nas metas deles (produtos
  * incluídos/excluídos de cada meta não entram aqui — é o total do fornecedor, não de uma meta).
  */
 @Service
@@ -58,6 +61,7 @@ public class AdsVendasPeriodoService {
     private final AdsHistoricoVendasClient client;
     private final RepresentanteRepository representantes;
     private final MetaRepository metas;
+    private final FornecedorRepository fornecedores;
     private final ExecutorService buscas = Executors.newFixedThreadPool(BUSCAS_SIMULTANEAS);
 
     /** Varrer um ano inteiro na ADS demora; períodos já fechados ficam guardados um tempo. */
@@ -71,10 +75,12 @@ public class AdsVendasPeriodoService {
     private record CacheItem(List<AdsVenda> vendas, Instant em) {
     }
 
-    public AdsVendasPeriodoService(AdsHistoricoVendasClient client, RepresentanteRepository representantes, MetaRepository metas) {
+    public AdsVendasPeriodoService(AdsHistoricoVendasClient client, RepresentanteRepository representantes, MetaRepository metas,
+            FornecedorRepository fornecedores) {
         this.client = client;
         this.representantes = representantes;
         this.metas = metas;
+        this.fornecedores = fornecedores;
     }
 
     @PreDestroy
@@ -82,19 +88,19 @@ public class AdsVendasPeriodoService {
         buscas.shutdownNow();
     }
 
-    /** {@code representanteId} vazio busca todos os cadastrados com código ADS; {@code fornecedorId} vazio soma todos os fornecedores. */
-    public VendasPeriodo buscar(LocalDate inicio, LocalDate fim, String representanteId, String fornecedorId) {
+    /** {@code representanteIds} vazio busca todos os cadastrados com código ADS; {@code fornecedorIds} vazio soma todos os fornecedores. */
+    public VendasPeriodo buscar(LocalDate inicio, LocalDate fim, Set<String> representanteIds, Set<String> fornecedorIds) {
         List<Representante> alvos = representantes.findAll().stream()
                 .filter(r -> temCodigo(r.getCodigoAds()))
-                .filter(r -> !temCodigo(representanteId) || representanteId.equals(r.getId()))
+                .filter(r -> representanteIds.isEmpty() || representanteIds.contains(r.getId()))
                 .toList();
         if (alvos.isEmpty()) {
-            throw new ConsultaInvalidaException(temCodigo(representanteId)
-                    ? "Esse representante não tem código da ADS no cadastro"
-                    : "Nenhum representante tem código da ADS no cadastro");
+            throw new ConsultaInvalidaException(representanteIds.isEmpty()
+                    ? "Nenhum representante tem código da ADS no cadastro"
+                    : "Nenhum dos representantes escolhidos tem código da ADS no cadastro");
         }
 
-        Filtro filtro = filtroDoFornecedor(fornecedorId);
+        Filtro filtro = filtroDosFornecedores(fornecedorIds);
         Map<Representante, List<AdsVenda>> vendas = buscarTodos(inicio, fim, alvos);
         return agrupar(inicio, fim, vendas, filtro);
     }
@@ -116,22 +122,37 @@ public class AdsVendasPeriodoService {
         return vendas;
     }
 
-    /** Sem fornecedor, tudo conta. Com fornecedor, os CNPJs e divisões das metas dele. */
-    private Filtro filtroDoFornecedor(String fornecedorId) {
-        if (!temCodigo(fornecedorId)) return Filtro.TUDO;
+    /**
+     * Sem fornecedor, tudo conta. Com fornecedores, junta os CNPJs e divisões das metas de todos eles
+     * (como conjunto: um item que bate com dois fornecedores conta uma vez só). Cada fornecedor
+     * escolhido precisa ter algum código — senão o número dele sumiria sem aviso.
+     */
+    private Filtro filtroDosFornecedores(Set<String> fornecedorIds) {
+        if (fornecedorIds.isEmpty()) return Filtro.TUDO;
 
-        List<Meta> doFornecedor = metas.findAll().stream()
-                .filter(m -> m.getFornecedor() != null && fornecedorId.equals(m.getFornecedor().getId()))
-                .toList();
-        Set<String> cnpjs = codigos(doFornecedor.stream().map(Meta::getCnpjAdsFornecedor).toList());
-        // Divisão de meta que já tem CNPJ é ignorada na sincronização também (CNPJ tem prioridade).
-        Set<String> divisoes = codigos(doFornecedor.stream()
-                .filter(m -> !temCodigo(m.getCnpjAdsFornecedor()))
-                .map(Meta::getCodigoAdsDivisao)
-                .toList());
-        if (cnpjs.isEmpty() && divisoes.isEmpty()) {
-            throw new ConsultaInvalidaException(
-                    "Esse fornecedor não tem CNPJ nem divisão da ADS em nenhuma meta — cadastre numa meta dele pra poder filtrar");
+        Set<String> cnpjs = new HashSet<>();
+        Set<String> divisoes = new HashSet<>();
+        List<String> semCodigo = new ArrayList<>();
+        List<Meta> todas = metas.findAll();
+        for (String fornecedorId : fornecedorIds) {
+            List<Meta> doFornecedor = todas.stream()
+                    .filter(m -> m.getFornecedor() != null && fornecedorId.equals(m.getFornecedor().getId()))
+                    .toList();
+            Set<String> cnpjsDele = codigos(doFornecedor.stream().map(Meta::getCnpjAdsFornecedor).toList());
+            // Divisão de meta que já tem CNPJ é ignorada na sincronização também (CNPJ tem prioridade).
+            Set<String> divisoesDele = codigos(doFornecedor.stream()
+                    .filter(m -> !temCodigo(m.getCnpjAdsFornecedor()))
+                    .map(Meta::getCodigoAdsDivisao)
+                    .toList());
+            if (cnpjsDele.isEmpty() && divisoesDele.isEmpty()) {
+                semCodigo.add(fornecedores.findById(fornecedorId).map(Fornecedor::getNome).orElse(fornecedorId));
+            }
+            cnpjs.addAll(cnpjsDele);
+            divisoes.addAll(divisoesDele);
+        }
+        if (!semCodigo.isEmpty()) {
+            throw new ConsultaInvalidaException("Sem CNPJ nem divisão da ADS em nenhuma meta: " + String.join(", ", semCodigo)
+                    + " — cadastre numa meta pra poder filtrar");
         }
         return new Filtro(cnpjs, divisoes);
     }
