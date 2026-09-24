@@ -69,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/metas/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/metas-representante/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/especialista-pet/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/dados/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
