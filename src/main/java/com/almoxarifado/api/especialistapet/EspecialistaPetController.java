@@ -72,6 +72,20 @@ public class EspecialistaPetController {
         return repository.findByMesOrderByRepresentanteAscNomeAsc(mes.toString());
     }
 
+    /** percentual null = esse mês não está sincronizando agora. */
+    public record ProgressoSincronizacao(Integer percentual) {
+    }
+
+    /**
+     * Quanto já foi da sincronização em andamento do mês (0 a 100), pra tela mostrar enquanto o POST
+     * /sincronizar ainda não voltou.
+     */
+    @GetMapping("/sincronizar/progresso")
+    public ProgressoSincronizacao progresso(@RequestParam(required = false) String mes) {
+        var p = sincronizacao.progresso(Mes.ler(mes));
+        return new ProgressoSincronizacao(p.isPresent() ? p.getAsInt() : null);
+    }
+
     /** Força agora o recálculo do realizado a partir da ADS, do mês pedido (?mes=2026-09) ou do atual. */
     @PostMapping("/sincronizar")
     public List<ClienteEspecialistaPet> sincronizar(@RequestParam(required = false) String mes) {

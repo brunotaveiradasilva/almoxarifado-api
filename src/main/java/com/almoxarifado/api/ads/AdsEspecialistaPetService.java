@@ -5,7 +5,9 @@ import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.almoxarifado.api.especialistapet.ClienteEspecialistaPet;
 import com.almoxarifado.api.especialistapet.ClienteEspecialistaPetRepository;
@@ -43,6 +45,7 @@ public class AdsEspecialistaPetService {
 
     private final ClienteEspecialistaPetRepository clientes;
     private final AdsHistoricoVendasClient client;
+    private final Map<String, Integer> progressoPorMes = new ConcurrentHashMap<>();
 
     public AdsEspecialistaPetService(ClienteEspecialistaPetRepository clientes, AdsHistoricoVendasClient client) {
         this.clientes = clientes;
@@ -59,8 +62,26 @@ public class AdsEspecialistaPetService {
         }
     }
 
+    /**
+     * Quanto (0 a 100) já foi feito da sincronização em andamento de cada mês ("2026-09"), pra tela
+     * mostrar a barra enquanto espera. Só tem o mês enquanto ele está sincronizando.
+     */
+    public OptionalInt progresso(YearMonth mes) {
+        Integer p = progressoPorMes.get(mes.toString());
+        return p == null ? OptionalInt.empty() : OptionalInt.of(p);
+    }
+
     /** Recalcula e salva o realizado dos clientes da campanha no mês. Mês sem planilha importada não chama a ADS. */
     public void sincronizarMes(YearMonth mes) {
+        progressoPorMes.put(mes.toString(), 0);
+        try {
+            sincronizarMesComProgresso(mes);
+        } finally {
+            progressoPorMes.remove(mes.toString());
+        }
+    }
+
+    private void sincronizarMesComProgresso(YearMonth mes) {
         LocalDate hoje = LocalDate.now(Mes.FUSO);
         LocalDate inicio = mes.atDay(1);
         if (inicio.isAfter(hoje)) return;
@@ -71,7 +92,9 @@ public class AdsEspecialistaPetService {
 
         List<AdsVenda> vendas;
         try {
-            vendas = client.buscarTudo(inicio, fim, null);
+            // Buscar na ADS é quase todo o tempo: vai até 99%, e o 100% é quando termina de gravar.
+            vendas = client.buscarTudo(inicio, fim, null, (lidas, total) ->
+                    progressoPorMes.put(mes.toString(), total > 0 ? Math.min(99, lidas * 100 / total) : 0));
         } catch (AdsApiException e) {
             log.warn("Não foi possível sincronizar a campanha Especialista Pet de {} com a ADS: {}", mes, e.getMessage());
             throw e;

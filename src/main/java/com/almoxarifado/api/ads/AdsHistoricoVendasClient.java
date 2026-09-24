@@ -3,6 +3,7 @@ package com.almoxarifado.api.ads;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
@@ -49,12 +50,21 @@ public class AdsHistoricoVendasClient {
      * `reprId` filtra por representante (opcional — vazio busca de todos).
      */
     public List<AdsVenda> buscarTudo(LocalDate dtInicio, LocalDate dtFinal, String reprId) {
+        return buscarTudo(dtInicio, dtFinal, reprId, (lidas, total) -> { });
+    }
+
+    /**
+     * Igual ao de cima, avisando {@code aoLerPagina} depois de cada página com quantas vendas já vieram e
+     * quantas a ADS diz que o período tem no total — pra mostrar o progresso de buscas longas.
+     */
+    public List<AdsVenda> buscarTudo(LocalDate dtInicio, LocalDate dtFinal, String reprId, BiConsumer<Integer, Integer> aoLerPagina) {
         List<AdsVenda> todas = new ArrayList<>();
         int pagina = 1;
         AdsHistoricoVendasPagina resultado;
         do {
             resultado = buscarPagina(dtInicio, dtFinal, reprId, pagina, 100);
             todas.addAll(resultado.items());
+            aoLerPagina.accept(todas.size(), resultado.total());
             pagina++;
         } while (resultado.hasNext() && pagina <= MAX_PAGINAS);
         return todas;
