@@ -74,7 +74,25 @@ public class Meta {
      */
     private Integer ordem;
 
+    /** Texto livre pra explicar a meta (ex: "Campanha da 1ª quinzena"). Opcional. */
+    @Column(length = 500)
+    private String descricao;
+
+    /**
+     * Período da meta dentro do mês, em dias (ex: 1 a 19 e outra de 20 a 31): só as vendas faturadas
+     * nesses dias contam. Os dois null = mês inteiro. Um fim maior que o último dia do mês (31 em
+     * setembro) vale até o fim do mês.
+     */
+    private Integer diaInicio;
+    private Integer diaFim;
+
     public Meta() {
+    }
+
+    /** O dia do mês está no período da meta? Sem período, todo dia está. */
+    public boolean noPeriodo(int dia) {
+        if (diaInicio == null || diaFim == null) return true;
+        return dia >= diaInicio && dia <= diaFim;
     }
 
     public String getId() {
@@ -147,5 +165,29 @@ public class Meta {
 
     public void setOrdem(Integer ordem) {
         this.ordem = ordem;
+    }
+
+    public String getDescricao() {
+        return descricao;
+    }
+
+    public void setDescricao(String descricao) {
+        this.descricao = descricao;
+    }
+
+    public Integer getDiaInicio() {
+        return diaInicio;
+    }
+
+    public void setDiaInicio(Integer diaInicio) {
+        this.diaInicio = diaInicio;
+    }
+
+    public Integer getDiaFim() {
+        return diaFim;
+    }
+
+    public void setDiaFim(Integer diaFim) {
+        this.diaFim = diaFim;
     }
 }

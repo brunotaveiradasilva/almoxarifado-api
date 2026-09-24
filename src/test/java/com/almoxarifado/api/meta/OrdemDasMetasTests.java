@@ -84,7 +84,7 @@ class OrdemDasMetasTests {
     }
 
     private Meta criar(String nome) {
-        return controller.criar(new MetaRequest(nome, ourofino.getId(), UnidadeMeta.REAL, "", "", "", ""));
+        return controller.criar(new MetaRequest(nome, ourofino.getId(), UnidadeMeta.REAL, "", "", "", "", null, null, null));
     }
 
     private void salvarSemOrdem(String nome) {

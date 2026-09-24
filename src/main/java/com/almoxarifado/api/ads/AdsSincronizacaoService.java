@@ -175,9 +175,10 @@ public class AdsSincronizacaoService {
     /** Soma os itens da meta na unidade pedida — normalmente a da meta; REAL pro "em R$" das metas em kg. */
     private double somar(List<AdsVenda> vendas, Meta meta, UnidadeMeta unidade) {
         Predicate<AdsItemVenda> daMeta = itemDaMeta(meta);
-        List<AdsVenda> doFornecedor = temCodigo(meta.getCnpjAdsFornecedor())
-                ? vendas.stream().filter(v -> meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj())).toList()
-                : vendas;
+        List<AdsVenda> doFornecedor = vendas.stream()
+                .filter(v -> noPeriodo(v, meta))
+                .filter(v -> !temCodigo(meta.getCnpjAdsFornecedor()) || meta.getCnpjAdsFornecedor().equals(v.fornecedor().cnpj()))
+                .toList();
 
         if (unidade == UnidadeMeta.CLIENTES) {
             return contarClientesPositivados(doFornecedor, daMeta);
@@ -189,6 +190,15 @@ public class AdsSincronizacaoService {
                         .mapToDouble(item -> valor(item, unidade, fator(item, incluidos)))
                         .sum())
                 .sum();
+    }
+
+    /**
+     * Venda faturada num dia do período da meta (ex: 1 a 19)? Meta sem período aceita o mês todo; venda
+     * sem data só conta em meta sem período, já que não dá pra saber em qual parte do mês ela caiu.
+     */
+    private boolean noPeriodo(AdsVenda venda, Meta meta) {
+        if (meta.getDiaInicio() == null || meta.getDiaFim() == null) return true;
+        return venda.dataFaturamento() != null && meta.noPeriodo(venda.dataFaturamento().getDayOfMonth());
     }
 
     /**

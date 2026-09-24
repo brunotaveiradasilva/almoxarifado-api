@@ -95,6 +95,9 @@ public class MetaController {
         meta.setCnpjAdsFornecedor(corpo.cnpjAdsFornecedor());
         meta.setProdutosExcluidos(corpo.produtosExcluidos());
         meta.setProdutosIncluidos(corpo.produtosIncluidos());
+        meta.setDescricao(corpo.descricao() == null || corpo.descricao().isBlank() ? null : corpo.descricao().trim());
+        meta.setDiaInicio(corpo.diaInicio());
+        meta.setDiaFim(corpo.diaFim());
         meta.setFornecedor(buscarFornecedor(corpo.fornecedorId()));
     }
 
