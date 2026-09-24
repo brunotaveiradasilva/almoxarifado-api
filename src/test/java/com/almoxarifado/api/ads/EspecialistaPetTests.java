@@ -41,6 +41,19 @@ class EspecialistaPetTests {
         assertThat(r.get("1").total).isCloseTo(30.1, within(1e-9));
         assertThat(r.get("1").reais).isCloseTo(2 * 30 + 100 + 120, within(1e-9));
         assertThat(r.get("1").focoReais).isCloseTo(2 * 30 + 100, within(1e-9));
+        assertThat(r.get("1").focoWild).isZero();
+    }
+
+    @Test
+    void separaALinhaNattuWildDentroDoFoco() {
+        AdsItemVenda wild = new AdsItemVenda(new AdsItemVenda.AdsProduto("5196", "NATTU WILD CAES AD ABOBORA 12 KG"),
+                new AdsItemVenda.AdsDivisao("098", null), 2, new AdsItemVenda.AdsValoresItem(0, 150),
+                new AdsItemVenda.AdsPeso(24, 24));
+        Map<String, AdsEspecialistaPetService.Realizado> r = AdsEspecialistaPetService.somarPorCliente(List.of(
+                venda("VENDA DE MERCADORIA", PREMIER, "1", wild, item("091", 1, 2.5, 30))));
+
+        assertThat(r.get("1").foco).isCloseTo(26.5, within(1e-9));
+        assertThat(r.get("1").focoWild).isCloseTo(24, within(1e-9));
     }
 
     @Test

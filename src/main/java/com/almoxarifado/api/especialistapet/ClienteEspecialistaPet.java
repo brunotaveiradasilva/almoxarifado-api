@@ -67,7 +67,19 @@ public class ClienteEspecialistaPet {
     @Column(name = "realizado_foco_reais", nullable = false, columnDefinition = "double precision default 0")
     private double realizadoFocoReais;
 
+    /** Só a linha NATTU WILD em kg (parte de realizadoFoco) — o resto do foco é "sem WILD". */
+    @Column(name = "realizado_foco_wild", nullable = false, columnDefinition = "double precision default 0")
+    private double realizadoFocoWild;
+
     public ClienteEspecialistaPet() {
+    }
+
+    public double getRealizadoFocoWild() {
+        return realizadoFocoWild;
+    }
+
+    public void setRealizadoFocoWild(double realizadoFocoWild) {
+        this.realizadoFocoWild = realizadoFocoWild;
     }
 
     public double getRealizadoFocoReais() {
