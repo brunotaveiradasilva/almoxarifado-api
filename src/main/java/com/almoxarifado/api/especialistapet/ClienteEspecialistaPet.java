@@ -59,7 +59,23 @@ public class ClienteEspecialistaPet {
     @Column(name = "realizado_reais", nullable = false)
     private double realizadoReais;
 
+    /**
+     * Só o produto foco em R$, a preço de tabela (parte de realizadoReais). O desconto é separado: o
+     * foco só ganha desconto se o cliente bateu a meta de foco; o resto, pela faixa da campanha.
+     * O default 0 deixa a coluna ser criada em cima dos clientes já importados.
+     */
+    @Column(name = "realizado_foco_reais", nullable = false, columnDefinition = "double precision default 0")
+    private double realizadoFocoReais;
+
     public ClienteEspecialistaPet() {
+    }
+
+    public double getRealizadoFocoReais() {
+        return realizadoFocoReais;
+    }
+
+    public void setRealizadoFocoReais(double realizadoFocoReais) {
+        this.realizadoFocoReais = realizadoFocoReais;
     }
 
     public String getId() {

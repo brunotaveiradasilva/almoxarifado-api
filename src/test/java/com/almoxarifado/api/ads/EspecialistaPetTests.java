@@ -40,6 +40,7 @@ class EspecialistaPetTests {
         assertThat(r.get("1").foco).isCloseTo(15.1, within(1e-9));
         assertThat(r.get("1").total).isCloseTo(30.1, within(1e-9));
         assertThat(r.get("1").reais).isCloseTo(2 * 30 + 100 + 120, within(1e-9));
+        assertThat(r.get("1").focoReais).isCloseTo(2 * 30 + 100, within(1e-9));
     }
 
     @Test
