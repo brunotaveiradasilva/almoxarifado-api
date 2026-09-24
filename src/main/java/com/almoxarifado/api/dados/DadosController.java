@@ -28,11 +28,12 @@ public class DadosController {
         this.vendas = vendas;
     }
 
-    /** ?inicio=2025-09-01&fim=2025-09-30, opcionalmente &fornecedorId=... */
+    /** ?inicio=2025-09-01&fim=2025-09-30, opcionalmente &representanteId=...&fornecedorId=... */
     @GetMapping("/vendas")
     public VendasPeriodo vendas(
             @RequestParam String inicio,
             @RequestParam String fim,
+            @RequestParam(required = false) String representanteId,
             @RequestParam(required = false) String fornecedorId) {
         LocalDate de = data(inicio);
         LocalDate ate = data(fim);
@@ -40,7 +41,7 @@ public class DadosController {
         if (ChronoUnit.DAYS.between(de, ate) >= MAX_DIAS) {
             throw new ConsultaInvalidaException("Escolha um período de até um ano");
         }
-        return vendas.buscar(de, ate, fornecedorId);
+        return vendas.buscar(de, ate, representanteId, fornecedorId);
     }
 
     private static LocalDate data(String texto) {
