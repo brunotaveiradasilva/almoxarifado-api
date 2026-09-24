@@ -74,8 +74,8 @@ public class MetaRepresentanteController {
 
     /**
      * Copia os valores de meta de um mês pro outro (ex.: agosto → setembro), só onde o mês de destino
-     * ainda não tem valor — nunca sobrescreve o que já foi cadastrado. O realizado começa zerado e vem
-     * na próxima sincronização. Devolve só as atribuições criadas.
+     * ainda não tem valor (ou só tem a linha "sem meta", valor 0) — nunca sobrescreve o que já foi
+     * cadastrado. O realizado vem na sincronização. Devolve as atribuições criadas ou preenchidas.
      */
     @PostMapping("/copiar")
     @Transactional
@@ -91,14 +91,20 @@ public class MetaRepresentanteController {
             if (fornecedorId != null && !fornecedorId.isBlank()
                     && !fornecedorId.equals(origem.getMeta().getFornecedor().getId())) continue;
 
-            boolean jaTem = repository.findByRepresentanteIdAndMetaIdAndMes(
-                    origem.getRepresentante().getId(), origem.getMeta().getId(), para.toString()).isPresent();
-            if (jaTem) continue;
+            // Valor 0 é "sem meta" (a sincronização cria só pra guardar o realizado): não tem o que copiar.
+            if (origem.getValorMeta() <= 0) continue;
 
-            MetaRepresentante copia = new MetaRepresentante();
-            copia.setRepresentante(origem.getRepresentante());
-            copia.setMeta(origem.getMeta());
-            copia.setMes(para.toString());
+            // No destino, a linha "sem meta" da sincronização conta como vazia: ganha o valor e mantém o realizado.
+            MetaRepresentante copia = repository.findByRepresentanteIdAndMetaIdAndMes(
+                    origem.getRepresentante().getId(), origem.getMeta().getId(), para.toString()).orElse(null);
+            if (copia != null && copia.getValorMeta() > 0) continue;
+
+            if (copia == null) {
+                copia = new MetaRepresentante();
+                copia.setRepresentante(origem.getRepresentante());
+                copia.setMeta(origem.getMeta());
+                copia.setMes(para.toString());
+            }
             copia.setValorMeta(origem.getValorMeta());
             criadas.add(repository.save(copia));
         }

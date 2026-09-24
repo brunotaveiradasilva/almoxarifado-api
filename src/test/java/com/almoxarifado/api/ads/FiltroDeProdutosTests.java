@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.almoxarifado.api.meta.Meta;
+import com.almoxarifado.api.meta.MetaRepository;
 import com.almoxarifado.api.meta.UnidadeMeta;
 import com.almoxarifado.api.metarepresentante.Mes;
 import com.almoxarifado.api.metarepresentante.MetaRepresentante;
@@ -31,7 +32,7 @@ class FiltroDeProdutosTests {
     TotalVendidoMensalRepository totais = mock(TotalVendidoMensalRepository.class);
     RepresentanteRepository representantes = mock(RepresentanteRepository.class);
     AdsHistoricoVendasClient client = mock(AdsHistoricoVendasClient.class);
-    AdsSincronizacaoService servico = new AdsSincronizacaoService(atribuicoes, totais, representantes, client);
+    AdsSincronizacaoService servico = new AdsSincronizacaoService(atribuicoes, totais, representantes, mock(MetaRepository.class), client);
 
     Representante marye;
 
